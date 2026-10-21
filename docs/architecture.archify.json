@@ -1,0 +1,260 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Rapsodo Golf on Apple Silicon",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      620
+    ]
+  },
+  "components": [
+    {
+      "id": "launcher",
+      "type": "external",
+      "label": "play.sh",
+      "sublabel": "iTerm (Local Network)",
+      "pos": [
+        40,
+        300
+      ],
+      "size": [
+        160,
+        64
+      ]
+    },
+    {
+      "id": "ui",
+      "type": "frontend",
+      "label": "Rapsodo Golf UI",
+      "sublabel": "Electron 30.5.1",
+      "pos": [
+        270,
+        300
+      ],
+      "size": [
+        160,
+        64
+      ]
+    },
+    {
+      "id": "games",
+      "type": "frontend",
+      "label": "Unity games",
+      "sublabel": "Driving Range etc.",
+      "pos": [
+        270,
+        480
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "tag": "Fix 3: DXVK d3d11"
+    },
+    {
+      "id": "dms",
+      "type": "backend",
+      "label": "deviceManagerServer",
+      "sublabel": "Go, gRPC :8080",
+      "pos": [
+        510,
+        110
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "Fix 2: 1-byte patch"
+    },
+    {
+      "id": "rdc",
+      "type": "backend",
+      "label": "libRDCLib + libzmq",
+      "sublabel": "RapsodoLib, zmq 4.3.5",
+      "pos": [
+        510,
+        300
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "Fix 1: patched DLL"
+    },
+    {
+      "id": "tether",
+      "type": "cloud",
+      "label": "TetherKit",
+      "sublabel": "RNDIS → feth0",
+      "pos": [
+        760,
+        300
+      ],
+      "size": [
+        160,
+        64
+      ]
+    },
+    {
+      "id": "usblink",
+      "type": "backend",
+      "label": "usb-link.sh",
+      "sublabel": "root supervisor",
+      "pos": [
+        760,
+        480
+      ],
+      "size": [
+        160,
+        64
+      ]
+    },
+    {
+      "id": "lm",
+      "type": "external",
+      "label": "MLM2PRO",
+      "sublabel": "192.168.36.1",
+      "pos": [
+        970,
+        300
+      ],
+      "size": [
+        150,
+        64
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Wine 11.16 prefix (Windows app)",
+      "wraps": [
+        "ui",
+        "games",
+        "dms",
+        "rdc"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "macOS userspace USB link",
+      "wraps": [
+        "tether",
+        "usblink"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "launch-app",
+      "from": "launcher",
+      "to": "ui",
+      "label": "exec"
+    },
+    {
+      "id": "launch-link",
+      "from": "launcher",
+      "to": "usblink",
+      "label": "sudo",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "via": [
+        [
+          120,
+          580
+        ],
+        [
+          840,
+          580
+        ]
+      ]
+    },
+    {
+      "id": "ui-games",
+      "from": "ui",
+      "to": "games",
+      "label": "launches",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        350,
+        422
+      ]
+    },
+    {
+      "id": "ui-dms",
+      "from": "ui",
+      "to": "dms",
+      "label": "gRPC",
+      "fromSide": "top",
+      "toSide": "left"
+    },
+    {
+      "id": "ui-rdc",
+      "from": "ui",
+      "to": "rdc",
+      "label": "rdc calls"
+    },
+    {
+      "id": "rdc-zmq",
+      "from": "rdc",
+      "to": "tether",
+      "label": "ZMQ :32501",
+      "variant": "emphasis"
+    },
+    {
+      "id": "dms-coap",
+      "from": "dms",
+      "to": "tether",
+      "label": "CoAP :5683",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "top"
+    },
+    {
+      "id": "usb",
+      "from": "tether",
+      "to": "lm",
+      "label": "USB-C",
+      "variant": "emphasis"
+    },
+    {
+      "id": "supervise",
+      "from": "usblink",
+      "to": "tether",
+      "label": "restart + DHCP",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Working (10/19/2026)",
+      "items": [
+        "Connect, authenticate, firmware 4.1.9 → 4.1.19",
+        "Only via scripts/play.sh from iTerm"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Three patches",
+      "items": [
+        "libzmq: no 1 MB blocking fdpair send",
+        "deviceManagerServer: NETRESET → CONNRESET",
+        "DXVK d3d11 for Unity games"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Broken / untested",
+      "items": [
+        "Finder launch: mDNS blocked by Local Network privacy",
+        "Shot capture with the monitor untested"
+      ]
+    }
+  ]
+}

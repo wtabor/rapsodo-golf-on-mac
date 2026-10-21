@@ -1,0 +1,14 @@
+# Never commit Rapsodo binaries or build output.
+*.exe
+*.dll
+*.zip
+*.tar.xz
+*.tar.gz
+build/
+.DS_Store
+*.dxvk-cache
+
+# Archify visual-check sidecars (screenshots + reports), regenerated on demand.
+*.visual-check.*
+# Personal settings
+scripts/env.local.sh

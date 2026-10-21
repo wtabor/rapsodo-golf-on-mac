@@ -1,0 +1,13 @@
+--- a/src/ip.cpp	2026-10-19 10:04:20
++++ b/src/ip.cpp	2026-10-19 10:04:20
+@@ -456,7 +456,9 @@
+ 
+     //  Send/receive large chunk to work around TCP slow start
+     //  This code is a workaround for #1608
+-    if (*r_ != INVALID_SOCKET) {
++    //  PATCH (rapsodo-golf-mac): disabled. The 1 MB blocking send before any recv on the
++    //  same thread deadlocks under Wine on macOS (send never completes).
++    if (false && *r_ != INVALID_SOCKET) {
+         const size_t dummy_size =
+           1024 * 1024; //  1M to overload default receive buffer
+         unsigned char *dummy =
