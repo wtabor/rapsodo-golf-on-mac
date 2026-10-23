@@ -86,7 +86,8 @@ Mac app to open. Plug the monitor in over USB-C and play.
    It finds the Rapsodo download, puts this project in `~/rapsodo-golf-on-mac` (keep
    that folder: the app runs scripts from it), sets everything up and creates
    **Rapsodo Golf on Mac** in Applications. Type your Mac password if it asks.
-   Run the same command again any time to update.
+   Run the same command again any time to update; after the first install it no
+   longer needs the zip and never reinstalls (or downgrades) Rapsodo's app.
 
 <details>
 <summary>What the installer adds to your Mac</summary>
