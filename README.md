@@ -30,12 +30,26 @@ Mac app to open. Plug the monitor in over USB-C and play.
 
 </div>
 
+### On a Mac
+
+<p align="center">
+  <img src="docs/screenshots/range.jpg" alt="Driving Range running on a Mac, connected to the MLM2PRO" width="100%">
+</p>
+
+<p align="center"><sub>Driving Range, armed and waiting for a shot</sub></p>
+
+<p align="center">
+  <img src="docs/screenshots/home.jpg" alt="Rapsodo Golf home screen on a Mac, monitor connected" width="100%">
+</p>
+
+<p align="center"><sub>Home screen, monitor connected (green link icon, top right)</sub></p>
+
 ### Status
 
 | | |
 |---|---|
-| ✅ **Works** | App opens, finds the monitor, signs in, runs firmware updates (tested 4.1.9 → 4.1.19). Driving Range opens, connects and arms the monitor. |
-| 🟡 **Not confirmed yet** | Shot capture over a full session (the monitor dropped out twice in testing), alignment, camera view. |
+| ✅ **Works** | App opens, finds the monitor, signs in, runs firmware updates (tested 4.1.9 → 4.1.19). Driving Range opens, connects and arms the monitor. The alignment screen shows the monitor's live camera. |
+| 🟡 **Not confirmed yet** | Shot capture over a full session (the monitor dropped out twice in testing). |
 | 🖥️ **Tested on** | macOS 26.6 and 27.0.1, M4 Mac, Rapsodo Golf 1.0.0 |
 
 > [!NOTE]
