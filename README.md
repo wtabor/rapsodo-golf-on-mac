@@ -9,6 +9,7 @@
 ![MLM2PRO over USB-C](https://img.shields.io/badge/MLM2PRO-USB--C-2ea44f)
 ![Status](https://img.shields.io/badge/status-beta-yellow)
 ![Unofficial](https://img.shields.io/badge/Rapsodo-unofficial-lightgrey)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 <a href="https://www.buymeacoffee.com/aerstrike"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy me a coffee"></a>
 
@@ -231,7 +232,22 @@ and new game downloads undo them.
   [DXVK-macOS](https://github.com/Gcenx/DXVK-macOS) and
   [libzmq](https://github.com/zeromq/libzmq) (rebuilt with the patch in `patches/`).
 - **Your location** stays in the gitignored `scripts/env.local.sh`, never in `env.sh`.
-- **License:** not chosen yet.
+- **License:** [MIT](LICENSE), except the libzmq patch in `patches/`, which is
+  [MPL-2.0](https://mozilla.org/MPL/2.0/) like libzmq itself.
+
+## Legal
+
+- **Trademarks.** Rapsodo, MLM2PRO and Rapsodo Golf are trademarks of Rapsodo. This
+  project is not affiliated with, endorsed by or supported by Rapsodo; the names are
+  used only to say what it works with.
+- **Rapsodo's terms.** The installer modifies your own installed copy of Rapsodo's
+  app (it swaps in a rebuilt `libzmq.dll`, patches one byte in
+  `deviceManagerServer.exe`, and replaces `GeolocationPlugin.dll` in the games).
+  Rapsodo's [Terms of Use](https://rapsodo.com/pages/terms-of-use) prohibit
+  modifying their software. Read them and decide for yourself; using this project
+  is your choice and your responsibility.
+- **No warranty.** Provided as is, with no warranty of any kind (see [LICENSE](LICENSE)).
+  Rapsodo can change or block their app at any time.
 
 <div align="center">
 
