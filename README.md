@@ -1,17 +1,44 @@
-# Rapsodo Golf on Mac
+<div align="center">
 
-Play Rapsodo's **Rapsodo Golf for PC** app on an Apple Silicon Mac with your
-**MLM2PRO** plugged in over USB-C. Rapsodo only ships the app for Windows; this
-project runs it under Wine and fixes the parts that break.
+<img src="docs/hero.svg" alt="Rapsodo Golf on Mac: the Windows-only PC app, running on your Mac" width="100%">
 
-**Status**
+**[Install](#install)** · **[Play](#play)** · **[Troubleshooting](#troubleshooting)** · **[How it works](#how-it-works)**
+
+![Tested on macOS 26 and 27](https://img.shields.io/badge/tested-macOS%2026%20%7C%2027-000?logo=apple)
+![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-M1%2B-000?logo=apple)
+![MLM2PRO over USB-C](https://img.shields.io/badge/MLM2PRO-USB--C-2ea44f)
+![Status](https://img.shields.io/badge/status-beta-yellow)
+![Unofficial](https://img.shields.io/badge/Rapsodo-unofficial-lightgrey)
+
+<a href="https://www.buymeacoffee.com/aerstrike"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy me a coffee"></a>
+
+</div>
+
+## Your MLM2PRO, your Mac, no Windows PC.
+
+Rapsodo only ships **Rapsodo Golf for PC** for Windows. This project runs it on an
+Apple Silicon Mac under Wine, fixes the parts that break, and gives you a normal
+Mac app to open. Plug the monitor in over USB-C and play.
+
+<div align="center">
+
+| | Step | What happens |
+|:---:|---|---|
+| **01** | Install | One script sets up Wine, Rapsodo's app and the fixes. |
+| **02** | Plug in | MLM2PRO on USB-C, powered on. |
+| **03** | Play | Open **Rapsodo Golf (Mac Port)**, sign in, hit balls. |
+
+</div>
+
+### Status
 
 | | |
 |---|---|
-| Works | App opens, finds the monitor, signs in, runs firmware updates (tested 4.1.9 → 4.1.19). Driving Range opens, connects and arms the monitor. |
-| Not confirmed yet | Shot capture over a full session (the monitor dropped out twice in testing), alignment, camera view. |
-| Tested on | macOS 26.6 and 27.0.1, M4 Mac, Rapsodo Golf 1.0.0 |
+| ✅ **Works** | App opens, finds the monitor, signs in, runs firmware updates (tested 4.1.9 → 4.1.19). Driving Range opens, connects and arms the monitor. |
+| 🟡 **Not confirmed yet** | Shot capture over a full session (the monitor dropped out twice in testing), alignment, camera view. |
+| 🖥️ **Tested on** | macOS 26.6 and 27.0.1, M4 Mac, Rapsodo Golf 1.0.0 |
 
+> [!NOTE]
 > **Unofficial.** This is a community project, not made or endorsed by Rapsodo.
 > It contains scripts and patches only, no Rapsodo files: you download the app from
 > Rapsodo yourself, and the patches are applied to your own copy. A Rapsodo update
@@ -184,6 +211,16 @@ patches those too. [`scripts/play.sh`](scripts/play.sh) re-runs it and
 `45-install-dxvk.sh` on every launch (about 4 seconds), because Rapsodo updates
 and new game downloads undo them.
 
+### Built on
+
+<div align="center">
+
+| [Wine](https://github.com/Gcenx/macOS_Wine_builds) | [DXVK-macOS](https://github.com/Gcenx/DXVK-macOS) | [TetherKit](https://github.com/XiaoMiku01/TetherKit) | [libzmq](https://github.com/zeromq/libzmq) |
+|:---:|:---:|:---:|:---:|
+| runs the Windows app | D3D11 for the games | USB-C network link | patched to stop a Wine deadlock |
+
+</div>
+
 ## Open source
 
 - **No Rapsodo files in this repo.** `.gitignore` blocks `*.exe`, `*.dll`, `*.zip`;
@@ -195,3 +232,11 @@ and new game downloads undo them.
   [libzmq](https://github.com/zeromq/libzmq) (rebuilt with the patch in `patches/`).
 - **Your location** stays in the gitignored `scripts/env.local.sh`, never in `env.sh`.
 - **License:** not chosen yet.
+
+<div align="center">
+
+**Saved you from buying a Windows PC?**
+
+<a href="https://www.buymeacoffee.com/aerstrike"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy me a coffee"></a>
+
+</div>

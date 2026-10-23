@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="560" viewBox="0 0 1280 560" role="img" aria-label="Rapsodo Golf on Mac: the Windows-only PC app on Apple Silicon, with your MLM2PRO over USB-C">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#05140f"/>
+      <stop offset="0.55" stop-color="#0a2a1d"/>
+      <stop offset="1" stop-color="#0f3d26"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="1" r="0.75">
+      <stop offset="0" stop-color="#3ddc84" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#3ddc84" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="flight" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.15"/>
+      <stop offset="0.45" stop-color="#b8ff6a"/>
+      <stop offset="1" stop-color="#ffe14d"/>
+    </linearGradient>
+    <radialGradient id="ball" cx="0.38" cy="0.35" r="0.7">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.7" stop-color="#e9efe9"/>
+      <stop offset="1" stop-color="#b9c4bb"/>
+    </radialGradient>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+    <clipPath id="card"><rect width="1280" height="560" rx="28"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#card)">
+    <rect width="1280" height="560" fill="url(#sky)"/>
+    <rect width="1280" height="560" fill="url(#glow)"/>
+
+    <!-- range grid in perspective -->
+    <g stroke="#3ddc84" stroke-opacity="0.16" stroke-width="1.5" fill="none">
+      <path d="M0 420 H1280"/>
+      <path d="M0 448 H1280"/>
+      <path d="M0 482 H1280"/>
+      <path d="M0 526 H1280"/>
+      <path d="M640 400 L640 560"/>
+      <path d="M640 400 L420 560"/>
+      <path d="M640 400 L860 560"/>
+      <path d="M640 400 L180 560"/>
+      <path d="M640 400 L1100 560"/>
+      <path d="M640 400 L-80 560"/>
+      <path d="M640 400 L1360 560"/>
+    </g>
+    <path d="M0 400 H1280" stroke="#3ddc84" stroke-opacity="0.35" stroke-width="1.5"/>
+
+    <!-- target rings -->
+    <g transform="translate(1086 428)" fill="none" stroke="#ffe14d">
+      <ellipse rx="92" ry="16" stroke-opacity="0.25" stroke-width="2"/>
+      <ellipse rx="58" ry="10" stroke-opacity="0.45" stroke-width="2"/>
+      <ellipse rx="24" ry="4.5" stroke-opacity="0.9" stroke-width="2.5"/>
+    </g>
+
+    <!-- ball flight -->
+    <path d="M110 480 C 360 0, 860 -10, 1080 424" fill="none" stroke="url(#flight)" stroke-width="10" stroke-linecap="round" opacity="0.35" filter="url(#soft)"/>
+    <path d="M110 480 C 360 0, 860 -10, 1080 424" fill="none" stroke="url(#flight)" stroke-width="4" stroke-linecap="round" stroke-dasharray="1 0"/>
+
+    <!-- tee and ball at launch -->
+    <path d="M104 496 L116 496 L112 480 L108 480 Z" fill="#ffe14d" opacity="0.8"/>
+    <!-- ball near apex -->
+    <circle cx="716" cy="118" r="26" fill="#b8ff6a" opacity="0.35" filter="url(#soft)"/>
+    <circle cx="716" cy="118" r="17" fill="url(#ball)"/>
+    <g fill="#9aa79d" opacity="0.55">
+      <circle cx="710" cy="112" r="1.6"/><circle cx="718" cy="110" r="1.6"/>
+      <circle cx="724" cy="117" r="1.6"/><circle cx="714" cy="120" r="1.6"/>
+      <circle cx="721" cy="125" r="1.6"/><circle cx="708" cy="122" r="1.6"/>
+    </g>
+
+    <!-- shot readout chips -->
+    <g font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600">
+      <g transform="translate(96 64)">
+        <rect width="196" height="40" rx="20" fill="#ffffff" fill-opacity="0.07" stroke="#ffffff" stroke-opacity="0.14"/>
+        <circle cx="22" cy="20" r="5" fill="#3ddc84"/>
+        <text x="36" y="25" fill="#d8f5e3">MLM2PRO · USB-C</text>
+      </g>
+      <g transform="translate(1024 64)">
+        <rect width="160" height="40" rx="20" fill="#ffffff" fill-opacity="0.07" stroke="#ffffff" stroke-opacity="0.14"/>
+        <circle cx="22" cy="20" r="5" fill="#ffe14d"/>
+        <text x="36" y="25" fill="#d8f5e3">Apple Silicon</text>
+      </g>
+    </g>
+
+    <!-- title -->
+    <g font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Helvetica, Arial, sans-serif" text-anchor="middle">
+      <text x="640" y="318" font-size="68" font-weight="800" fill="#ffffff" letter-spacing="-1.5">Rapsodo Golf on Mac</text>
+      <text x="640" y="368" font-size="26" font-weight="500" fill="#b7d8c4">The Windows-only PC app, running on your Mac.</text>
+    </g>
+  </g>
+</svg>
