@@ -56,51 +56,36 @@ Mac app to open. Plug the monitor in over USB-C and play.
 
 ## Install
 
-Every command below goes in the **Terminal** app (Applications → Utilities →
-Terminal). Paste one block, press Return, and wait for it to finish before the next.
-
-1. **Install Homebrew**, the Mac package manager. It also installs Apple's
-   command-line developer tools. Follow its prompts.
-
-   ```bash
-   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-   ```
-
-   When it finishes it prints two or three "Next steps" commands. Run them, then
-   close and reopen Terminal.
-
-2. **Install the build tools and iTerm.** The app is started from
-   [iTerm](https://iterm2.com/) (see [Why iTerm](#why-iterm)).
-
-   ```bash
-   brew install mingw-w64 cmake libusb && brew install --cask iterm2
-   ```
-
-3. **Install Rosetta 2.** Wine is an Intel program.
-
-   ```bash
-   softwareupdate --install-rosetta --agree-to-license
-   ```
-
-4. **Download this project.** Keep the folder where it is: the Mac app runs the
-   scripts in it.
-
-   ```bash
-   git clone https://github.com/wtabor/rapsodo-golf-mac.git ~/rapsodo-golf-mac
-   ```
-
-5. **Download the Rapsodo app.** On
+1. **Download the Rapsodo app.** On
    [Rapsodo's PC app page](https://rapsodo.com/pages/rapsodo-studios-for-pc), click
    **Download PC App**. You get `RapsodoGolfSetup.zip` (about 240 MB) in Downloads.
    Don't unzip it.
 
-6. **Run the installer.** It downloads Wine and the other pieces, installs
-   Rapsodo's app, applies the fixes and creates **Rapsodo Golf (Mac Port)** in
-   Applications.
+2. **Paste this into Terminal** (Applications → Utilities → Terminal) and press
+   Return:
 
    ```bash
-   ~/rapsodo-golf-mac/scripts/install.sh ~/Downloads/RapsodoGolfSetup.zip
+   mkdir -p ~/rapsodo-golf-mac && curl -fsSL https://github.com/wtabor/rapsodo-golf-mac/archive/refs/heads/main.tar.gz | tar xz --strip-components 1 -C ~/rapsodo-golf-mac && ~/rapsodo-golf-mac/scripts/install.sh ~/Downloads/RapsodoGolfSetup.zip
    ```
+
+   It downloads this project to `~/rapsodo-golf-mac` (keep that folder: the app
+   runs scripts from it), then sets everything up and creates **Rapsodo Golf (Mac
+   Port)** in Applications. Type your Mac password if it asks.
+
+<details>
+<summary>What the installer adds to your Mac</summary>
+
+Anything you already have is skipped.
+
+- **Rosetta 2**, Apple's Intel translator. Wine is an Intel program.
+- **[Homebrew](https://brew.sh/)**, which also brings Apple's command-line
+  developer tools.
+- **mingw-w64, cmake, libusb** from Homebrew, to build the patched pieces.
+- **[iTerm](https://iterm2.com/)**, which starts the app (see [Why iTerm](#why-iterm)).
+- **Wine**, **DXVK** and Rapsodo's app, all inside
+  `~/Library/Application Support/RapsodoGolf-Wine11/`.
+
+</details>
 
 ## Play
 
@@ -135,7 +120,7 @@ drives ball flight.
 
 | You see | Do this |
 |---|---|
-| iTerm says **Rosetta 2 is not installed** (common after a macOS update) | Run `softwareupdate --install-rosetta --agree-to-license`, then open the app again. Allow the iTerm prompt again if it comes back. |
+| iTerm says **Rosetta 2 is not installed** (common after a macOS update) | Run `sudo softwareupdate --install-rosetta --agree-to-license`, then open the app again. Allow the iTerm prompt again if it comes back. |
 | **Could not open iTerm** | System Settings → Privacy & Security → Automation → turn on iTerm under **bash**. Open the app again. |
 | iTerm sits at **Waiting for the monitor** | The monitor turns itself off when idle: press its power button. After a replug it can take about 60 seconds to answer. |
 | The Rapsodo app says **Device not found** | Wait a minute and retry. Check `~/Library/Logs/RapsodoGolf-usblink.log` for `feth0 DHCP (re)requested`. |

@@ -23,7 +23,7 @@ fail() {
 # and then every Wine binary fails with "Bad CPU type in executable".
 arch -x86_64 /usr/bin/true 2>/dev/null ||
   fail "Rosetta 2 is not installed (a macOS update can remove it). Install it with:
-  softwareupdate --install-rosetta --agree-to-license"
+  sudo softwareupdate --install-rosetta --agree-to-license"
 
 if pgrep -f "RapsodoGolf.exe --no-sandbox" >/dev/null; then
   echo "Rapsodo Golf is already running."

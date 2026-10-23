@@ -2,8 +2,12 @@
 # One-shot setup. Usage: scripts/install.sh ~/Downloads/RapsodoGolfSetup.zip
 set -euo pipefail
 d="$(dirname "$0")"
+[ -f "${1:-}" ] || { echo "Pass the Rapsodo installer, e.g. $0 ~/Downloads/RapsodoGolfSetup.zip" >&2; exit 1; }
+"$d/00-prereqs.sh"
+# A Homebrew installed just now isn't on this shell's PATH yet.
+command -v brew >/dev/null || eval "$(/opt/homebrew/bin/brew shellenv)"
 "$d/10-install-wine.sh"
-"$d/20-install-rapsodo.sh" "${1:?pass the RapsodoGolfSetup.zip}"
+"$d/20-install-rapsodo.sh" "$1"
 "$d/30-build-libzmq.sh"
 "$d/40-apply-patches.sh"
 "$d/45-install-dxvk.sh"
