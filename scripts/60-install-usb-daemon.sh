@@ -9,9 +9,9 @@ set -euo pipefail
 [ "$(id -u)" = 0 ] || { echo "run with sudo" >&2; exit 1; }
 . "$(dirname "$0")/env.sh"
 
-LABEL=local.rapsodo-golf-mac.usb-link
+LABEL=local.rapsodo-golf-on-mac.usb-link
 PLIST=/Library/LaunchDaemons/$LABEL.plist
-DEST=/usr/local/libexec/rapsodo-golf-mac
+DEST=/usr/local/libexec/rapsodo-golf-on-mac
 LOG=/Library/Logs/RapsodoGolf-usblink.log
 
 launchctl bootout "system/$LABEL" 2>/dev/null || true

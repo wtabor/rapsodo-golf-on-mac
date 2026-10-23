@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Shared paths for rapsodo-golf-mac scripts. Source this file; don't run it.
+# Shared paths for rapsodo-golf-on-mac scripts. Source this file; don't run it.
 # Override any of these in the environment before sourcing, or put personal
 # settings in scripts/env.local.sh (gitignored; see env.local.sh.example).
 _rgm_local="$(dirname "${BASH_SOURCE[0]}")/env.local.sh"
@@ -16,7 +16,7 @@ fi
 : "${RGM_HOME:=$RGM_USER_HOME/Library/Application Support/RapsodoGolf-Wine11}"
 : "${RGM_WINE_VERSION:=11.16}"
 : "${RGM_WINE_URL:=https://github.com/Gcenx/macOS_Wine_builds/releases/download/${RGM_WINE_VERSION}/wine-staging-${RGM_WINE_VERSION}-osx64.tar.xz}"
-: "${RGM_APP_BUNDLE:=/Applications/Rapsodo Golf (Mac Port).app}"
+: "${RGM_APP_BUNDLE:=/Applications/Rapsodo Golf on Mac.app}"
 : "${RGM_LOG:=$RGM_USER_HOME/Library/Logs/RapsodoGolf-Wine.log}"
 # The monitor's USB RNDIS identity (MLM2PRO, Rockchip gadget).
 : "${RGM_USB_VID:=2207}"

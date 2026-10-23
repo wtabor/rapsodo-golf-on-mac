@@ -1,4 +1,4 @@
-# CLAUDE.md — rapsodo-golf-mac
+# CLAUDE.md — rapsodo-golf-on-mac
 
 Runs Rapsodo's Windows-only **Rapsodo Golf** PC app (1.0.0, Electron) on an Apple
 Silicon Mac with an **MLM2PRO** connected over USB-C. Scripts and patches only; no

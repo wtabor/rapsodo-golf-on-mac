@@ -17,4 +17,4 @@ echo
 echo "Done. Optional, so play.sh never asks for a password:"
 echo "  sudo \"$d/60-install-usb-daemon.sh\""
 echo "To play: plug in the MLM2PRO (USB-C), power it on, then"
-echo "  open \"/Applications/Rapsodo Golf (Mac Port).app\"   # runs play.sh in iTerm"
+echo "  open \"/Applications/Rapsodo Golf on Mac.app\"   # runs play.sh in iTerm"

@@ -1,4 +1,4 @@
-// Native launcher for "Rapsodo Golf (Mac Port).app".
+// Native launcher for "Rapsodo Golf on Mac.app".
 //
 // Why a compiled binary instead of a shell script: macOS Local Network privacy is
 // granted per app. With a script as CFBundleExecutable, macOS never showed the

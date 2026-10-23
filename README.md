@@ -26,7 +26,7 @@ Mac app to open. Plug the monitor in over USB-C and play.
 |:---:|---|---|
 | **01** | Install | One script sets up Wine, Rapsodo's app and the fixes. |
 | **02** | Plug in | MLM2PRO on USB-C, powered on. |
-| **03** | Play | Open **Rapsodo Golf (Mac Port)**, sign in, hit balls. |
+| **03** | Play | Open **Rapsodo Golf on Mac**, sign in, hit balls. |
 
 </div>
 
@@ -79,12 +79,13 @@ Mac app to open. Plug the monitor in over USB-C and play.
    Return:
 
    ```bash
-   mkdir -p ~/rapsodo-golf-mac && curl -fsSL https://github.com/wtabor/rapsodo-golf-mac/archive/refs/heads/main.tar.gz | tar xz --strip-components 1 -C ~/rapsodo-golf-mac && ~/rapsodo-golf-mac/scripts/install.sh ~/Downloads/RapsodoGolfSetup.zip
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/wtabor/rapsodo-golf-on-mac/main/bootstrap.sh)"
    ```
 
-   It downloads this project to `~/rapsodo-golf-mac` (keep that folder: the app
-   runs scripts from it), then sets everything up and creates **Rapsodo Golf (Mac
-   Port)** in Applications. Type your Mac password if it asks.
+   It finds the Rapsodo download, puts this project in `~/rapsodo-golf-on-mac` (keep
+   that folder: the app runs scripts from it), sets everything up and creates
+   **Rapsodo Golf on Mac** in Applications. Type your Mac password if it asks.
+   Run the same command again any time to update.
 
 <details>
 <summary>What the installer adds to your Mac</summary>
@@ -104,7 +105,7 @@ Anything you already have is skipped.
 ## Play
 
 1. Plug the MLM2PRO into the Mac with USB-C and turn it on.
-2. Open **Rapsodo Golf (Mac Port)** from Applications (drag it to the Dock to keep it
+2. Open **Rapsodo Golf on Mac** from Applications (drag it to the Dock to keep it
    handy). It opens an iTerm window that starts everything.
 3. Type your Mac password when iTerm asks. The Rapsodo app opens once the monitor
    is connected; sign in with your Rapsodo account.
@@ -122,8 +123,8 @@ Anything you already have is skipped.
 one; this project answers for them with a fixed position. Set yours once:
 
 ```bash
-cp ~/rapsodo-golf-mac/scripts/env.local.sh.example ~/rapsodo-golf-mac/scripts/env.local.sh
-open -e ~/rapsodo-golf-mac/scripts/env.local.sh
+cp ~/rapsodo-golf-on-mac/scripts/env.local.sh.example ~/rapsodo-golf-on-mac/scripts/env.local.sh
+open -e ~/rapsodo-golf-on-mac/scripts/env.local.sh
 ```
 
 Put in your latitude, longitude and altitude (meters) and save. Without it the
@@ -138,8 +139,8 @@ drives ball flight.
 | **Could not open iTerm** | System Settings → Privacy & Security → Automation → turn on iTerm under **bash**. Open the app again. |
 | iTerm sits at **Waiting for the monitor** | The monitor turns itself off when idle: press its power button. After a replug it can take about 60 seconds to answer. |
 | The Rapsodo app says **Device not found** | Wait a minute and retry. Check `~/Library/Logs/RapsodoGolf-usblink.log` for `feth0 DHCP (re)requested`. |
-| A game says **Failed to initialize player / DirectX 11** | Run `~/rapsodo-golf-mac/scripts/45-install-dxvk.sh`, then start the game again. |
-| Something broke after Rapsodo updated itself | Open the app again: it re-applies every fix on each launch. To do it by hand: `~/rapsodo-golf-mac/scripts/40-apply-patches.sh` then `~/rapsodo-golf-mac/scripts/45-install-dxvk.sh`. |
+| A game says **Failed to initialize player / DirectX 11** | Run `~/rapsodo-golf-on-mac/scripts/45-install-dxvk.sh`, then start the game again. |
+| Something broke after Rapsodo updated itself | Open the app again: it re-applies every fix on each launch. To do it by hand: `~/rapsodo-golf-on-mac/scripts/40-apply-patches.sh` then `~/rapsodo-golf-on-mac/scripts/45-install-dxvk.sh`. |
 | The first sign-in times out | Nothing to do: the app retries on its own and the retry works. |
 
 Game music can only be turned off inside each game's own settings.
@@ -172,12 +173,12 @@ ID isn't available (lid closed, external keyboard without Touch ID).
 **Always on** installs TetherKit as a LaunchDaemon. No prompt at all, but a small
 third-party USB driver then runs as root all the time, which is more attack surface
 (for example a malicious USB device posing as the monitor). It runs root-owned
-copies in `/usr/local/libexec/rapsodo-golf-mac/` and logs to
+copies in `/usr/local/libexec/rapsodo-golf-on-mac/` and logs to
 `/Library/Logs/RapsodoGolf-usblink.log`.
 
 ```bash
-sudo ~/rapsodo-golf-mac/scripts/60-install-usb-daemon.sh              # install
-sudo ~/rapsodo-golf-mac/scripts/60-install-usb-daemon.sh --uninstall  # remove
+sudo ~/rapsodo-golf-on-mac/scripts/60-install-usb-daemon.sh              # install
+sudo ~/rapsodo-golf-on-mac/scripts/60-install-usb-daemon.sh --uninstall  # remove
 ```
 
 ## Why iTerm

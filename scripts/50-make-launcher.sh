@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Create the double-click app: /Applications/Rapsodo Golf (Mac Port).app ($RGM_APP_BUNDLE)
+# Create the double-click app: /Applications/Rapsodo Golf on Mac.app ($RGM_APP_BUNDLE)
 #   Contents/MacOS/open-in-iterm  entry point: runs scripts/play.sh in iTerm
 #   Contents/MacOS/launch         native launcher play.sh execs to start Wine
 #   Contents/Resources/AppIcon.icns  built from the installed app's own icon
@@ -12,7 +12,7 @@ cat > "$A/Contents/Info.plist" <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-<key>CFBundleName</key><string>Rapsodo Golf (Mac Port)</string>
+<key>CFBundleName</key><string>Rapsodo Golf on Mac</string>
 <key>CFBundleDisplayName</key><string>Rapsodo Golf</string>
 <key>CFBundleIdentifier</key><string>local.rapsodogolf-wine</string>
 <key>CFBundleExecutable</key><string>open-in-iterm</string>
