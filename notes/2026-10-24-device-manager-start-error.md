@@ -36,6 +36,14 @@ app isn't already running), so a crashed session can't leave a device manager
 holding the database. The 8080/9090 warning added earlier the same day was wrong
 and is removed.
 
+Then, on request, `play.sh` also retries: it starts the app in the background,
+watches the log for `DEBUG: start device manager` (ok) or `device manager server
+start failed`, and on failure saves the log as `RapsodoGolf-Wine-failed.log`,
+runs `wineserver -k`, and relaunches, up to 3 tries. Tested with a stub launcher
+(fail, fail, ok → started; fail ×3 → error naming the log). Injecting a fake line
+into the real log doesn't work: the launcher's fd isn't O_APPEND, so Wine
+overwrites it.
+
 ## Open
 
 The user's actual exit code is unknown. If it recurs, get their

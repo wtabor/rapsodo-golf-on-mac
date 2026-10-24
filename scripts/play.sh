@@ -61,4 +61,35 @@ else
   echo "plug in USB-C, then connect from the app (it can take about 60 s to answer)."
 fi
 
-exec "$RGM_APP_BUNDLE/Contents/MacOS/launch"
+# Start the app and watch its log. If the device manager fails to start ("The
+# device manager could not start"), clear Wine and start the app again, up to
+# three tries. A failed try's log is kept as RapsodoGolf-Wine-failed.log.
+failed_log="${RGM_LOG%.log}-failed.log"
+tries=3
+for try in $(seq 1 "$tries"); do
+  : >"$RGM_LOG"
+  "$RGM_APP_BUNDLE/Contents/MacOS/launch" &
+  pid=$!
+  result=""
+  for _ in $(seq 1 120); do
+    if grep -q "DEBUG: start device manager" "$RGM_LOG"; then result=ok; break; fi
+    if grep -q "device manager server start failed" "$RGM_LOG"; then result=failed; break; fi
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 1
+  done
+  [ "$result" = failed ] || break
+  cp "$RGM_LOG" "$failed_log"
+  if [ "$try" -lt "$tries" ]; then
+    echo "The device manager didn't start (try $try of $tries). Restarting the app..."
+    WINEPREFIX="$RGM_PREFIX" "$RGM_WINE_BIN/wineserver" -k 2>/dev/null || true
+    wait "$pid" || true
+    sleep 2
+  else
+    echo "error: the device manager still didn't start after $tries tries. Please open an" >&2
+    echo "issue and attach ~/Library/Logs/$(basename "$failed_log")." >&2
+  fi
+done
+[ "$result" = ok ] && echo "Rapsodo Golf started."
+
+# Stay open as long as the app runs, like the exec this replaced.
+wait "$pid"
