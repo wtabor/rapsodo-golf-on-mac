@@ -139,7 +139,7 @@ drives ball flight.
 |---|---|
 | iTerm says **Rosetta 2 is not installed** (common after a macOS update) | Run `sudo softwareupdate --install-rosetta --agree-to-license`, then open the app again. Allow the iTerm prompt again if it comes back. |
 | **Could not open iTerm** | System Settings → Privacy & Security → Automation → turn on iTerm under **bash**. Open the app again. |
-| iTerm sits at **Waiting for the monitor** | The monitor turns itself off when idle: press its power button. After a replug it can take about 60 seconds to answer. |
+| iTerm says **Monitor not connected yet** | The app starts anyway. The monitor turns itself off when idle: press its power button. After a replug it can take about 60 seconds to answer, then connect from the app. |
 | The Rapsodo app says **Device not found** | Wait a minute and retry. Check `~/Library/Logs/RapsodoGolf-usblink.log` for `feth0 DHCP (re)requested`. |
 | A game says **Failed to initialize player / DirectX 11** | Run `~/rapsodo-golf-on-mac/scripts/45-install-dxvk.sh`, then start the game again. |
 | Something broke after Rapsodo updated itself | Open the app again: it re-applies every fix on each launch. To do it by hand: `~/rapsodo-golf-on-mac/scripts/40-apply-patches.sh` then `~/rapsodo-golf-on-mac/scripts/45-install-dxvk.sh`. |

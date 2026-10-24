@@ -46,14 +46,13 @@ else
   echo "warning: re-applying the Wine fixes failed; see $heal_log" >&2
 fi
 
-echo "Waiting for the monitor (power it on and plug in USB-C)..."
-waited=0
-until ifconfig feth0 2>/dev/null | grep -q "inet 192\.168\.36\."; do
-  sleep 2; waited=$((waited + 2))
-  if [ "$waited" -eq 60 ]; then
-    echo "Still waiting. The monitor powers off when idle: press its power button."
-  fi
-done
-echo "Monitor link up: $(ifconfig feth0 | awk '/inet /{print $2}')"
+# Don't block on the monitor: the app is usable without it, and usb-link.sh keeps
+# watching in the background, so the link comes up whenever the monitor appears.
+if ifconfig feth0 2>/dev/null | grep -q "inet 192\.168\.36\."; then
+  echo "Monitor link up: $(ifconfig feth0 | awk '/inet /{print $2}')"
+else
+  echo "Monitor not connected yet. Starting the app anyway: power the monitor on and"
+  echo "plug in USB-C, then connect from the app (it can take about 60 s to answer)."
+fi
 
 exec "$RGM_APP_BUNDLE/Contents/MacOS/launch"
