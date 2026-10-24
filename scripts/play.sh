@@ -30,14 +30,11 @@ if pgrep -f "RapsodoGolf.exe --no-sandbox" >/dev/null; then
   exit 0
 fi
 
-# The device manager listens on 127.0.0.1:8080 and the download manager on :9090
-# (resources/libs/grpc-env.yaml). Another Mac app on either port makes the app
-# report "The device manager could not start: no port could be bound".
-for port in 8080 9090; do
-  holder="$(lsof -nP -iTCP:"$port" -sTCP:LISTEN -Fc 2>/dev/null | sed -n 's/^c//p' | head -1)"
-  [ -n "$holder" ] &&
-    echo "warning: port $port is in use by '$holder'; quit it, or the device manager may fail to start." >&2
-done
+# A crashed or force-quit session can leave Wine processes behind (renderer,
+# deviceManagerServer.exe) holding the app's database. The new device manager
+# then exits before binding a port: "The device manager could not start".
+# The app isn't running (checked above), so anything left in the prefix is stale.
+WINEPREFIX="$RGM_PREFIX" "$RGM_WINE_BIN/wineserver" -k 2>/dev/null || true
 
 if ! pgrep -f "usb-link.sh" >/dev/null; then
   sudo -v
