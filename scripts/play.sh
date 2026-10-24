@@ -30,6 +30,15 @@ if pgrep -f "RapsodoGolf.exe --no-sandbox" >/dev/null; then
   exit 0
 fi
 
+# The device manager listens on 127.0.0.1:8080 and the download manager on :9090
+# (resources/libs/grpc-env.yaml). Another Mac app on either port makes the app
+# report "The device manager could not start: no port could be bound".
+for port in 8080 9090; do
+  holder="$(lsof -nP -iTCP:"$port" -sTCP:LISTEN -Fc 2>/dev/null | sed -n 's/^c//p' | head -1)"
+  [ -n "$holder" ] &&
+    echo "warning: port $port is in use by '$holder'; quit it, or the device manager may fail to start." >&2
+done
+
 if ! pgrep -f "usb-link.sh" >/dev/null; then
   sudo -v
   # shellcheck disable=SC2024  # log stays user-owned on purpose
