@@ -1,0 +1,25 @@
+--- a/src/core/bridge.cc	2026-10-26 14:14:18
++++ b/src/core/bridge.cc	2026-10-26 14:14:18
+@@ -19,6 +19,13 @@
+ /// 完成时间），绝大多数等待都由完成回调的 notify 提前唤醒，几乎不会等满。
+ constexpr std::uint32_t kTxCapacityWaitMillis = 50;
+ 
++/// rapsodo-golf-on-mac: how long the RX injector sleeps once rx_ring_ has stayed
++/// empty through its spin. Upstream yields instead, but on macOS sched_yield()
++/// returns at once when nothing else wants the core, so the thread sat at ~100%
++/// of a core with no traffic. Frames that arrive meanwhile wait in rx_ring_
++/// (2048 slots) and go out as one batch: <= ~0.6 ms extra latency, <1% CPU idle.
++constexpr auto kRxIdleSleep = std::chrono::microseconds(500);
++
+ /// 把字节数换算成 Mbps。
+ [[nodiscard]] double ToMegabitsPerSecond(std::uint64_t bytes, double seconds) {
+   if (seconds <= 0.0) {
+@@ -169,7 +176,7 @@
+           continue;
+         }
+         idle_spins = 0;
+-        std::this_thread::yield();
++        std::this_thread::sleep_for(kRxIdleSleep);
+         continue;
+       }
+       idle_spins = 0;

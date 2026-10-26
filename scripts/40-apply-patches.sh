@@ -32,6 +32,12 @@ python3 -I "$(dirname "$0")/patch_devicemanager.py" "$RGM_LIBS_DIR/deviceManager
 python3 -I "$(dirname "$0")/patch_alignment_ffmpeg.py" "$RGM_APP_DIR/resources/app.asar" ||
   echo "warning: alignment camera view left at ~1 fps (app.asar not patched)" >&2
 
+# 2c) Fewer Windows processes: the app's game check (`cmd /c tasklist`, every 1 s
+#     while a game runs; now 60 s) and Wi-Fi poll (`cmd /c netsh`, every 15 s; now 1 h)
+#     keep macOS's ecosystemd busy analyzing each new Rosetta process. Warn only.
+python3 -I "$(dirname "$0")/patch_app_polls.py" "$RGM_APP_DIR/resources/app.asar" ||
+  echo "warning: some app polls left at their original rate (app.asar not fully patched)" >&2
+
 # 3) Same two fixes for each game. The patched libzmq is only a drop-in for the
 #    exact 4.3.5 build the app ships, so skip any game whose original differs.
 want="$(shasum -a 256 "$RGM_LIBS_DIR/libzmq.dll.orig" | cut -d' ' -f1)"

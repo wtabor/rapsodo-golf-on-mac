@@ -53,6 +53,13 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   DHCP: it is `192.168.36.1`, the Mac gets `192.168.36.x` on `feth0`.
   `scripts/usb-link.sh` (root) restarts TetherKit when the monitor re-enumerates and
   re-applies DHCP when macOS drops the temporary `ipconfig set` service.
+  `build-tetherkit.sh` applies `patches/tetherkit-rx-idle-sleep.patch` (v0.1.5): its RX
+  thread spun on `sched_yield()` (~1 P-core at all times); sleeping 500 µs instead cut it
+  to ~1% idle and ~4% while streaming both cameras (680 pps, 7.4 Mbps, 0 drops, 20 fps;
+  10/26/2026). The binary is replaced by rename (macOS caches code signatures per vnode).
+  A running TetherKit keeps the old binary until usb-link.sh restarts. The LaunchDaemon's
+  root-owned copy (`60-install-usb-daemon.sh`) updates only when 60 is re-run;
+  build-tetherkit.sh prints a note when it differs.
 - **Fix 1 — libzmq:** libzmq 4.3.5's `make_fdpair_tcpip` sends 1 MB over a blocking
   loopback socket before reading (zeromq #1608 workaround). Wine on macOS deadlocks.
   `scripts/30-build-libzmq.sh` cross-builds a patched DLL (mingw-w64 UCRT, CURVE via
@@ -87,6 +94,14 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   Chrome 124 under Wine) assembles only keyframes of multi-slice H.264 → ~1 fps.
   `scripts/patch_alignment_ffmpeg.py` does a same-length edit in `app.asar` adding
   `-x264-params sliced-threads=0:threads=4` (asar integrity fuse is off; `--revert`).
+- **Fix 7 — fewer Windows processes (load):** macOS `ecosystemd` does ~15 Rosetta /
+  code-signature checks per Windows process start, single-threaded at ~40 ms each
+  (~20–25/s at most; ~18/s measured at one core). The app's
+  `cmd /c tasklist` game check (every 1 s while a game runs) outran it: ~1 core busy for
+  minutes after a game. `scripts/patch_app_polls.py` (same-length `app.asar` edits,
+  `--revert`): game check `Pae = 1e3` → `6e4` (60 s; the `cmd /c` child's exit already
+  reports a normal quit), Wi-Fi `netsh` poll `WIFI_INTERVAL_TIME=15e3` → `36e5` (no Wi-Fi
+  data under Wine anyway). Studios: ecosystemd 55%+ → ~10% (measured at 10 s).
 - Games downloaded while the app runs are unpatched: play.sh watches `games/` and runs
   40 + 45 when the app logs `download game end` (fallback: 15 s with no changes) and no
   game is running. 40/45 skip files already in place (`cmp -s`), so re-runs never

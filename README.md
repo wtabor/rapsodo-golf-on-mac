@@ -185,7 +185,9 @@ Check it with `sudo -v` in a new Terminal tab: you should get a Touch ID prompt.
 Undo with `sudo rm /etc/pam.d/sudo_local`. It falls back to the password when Touch
 ID isn't available (lid closed, external keyboard without Touch ID).
 
-**Always on** installs TetherKit as a LaunchDaemon. No prompt at all, but a small
+**Always on** installs TetherKit as a LaunchDaemon. Updates don't refresh that copy:
+when the installer prints "the always-on USB link still runs an older TetherKit", run
+the command it shows. No prompt at all, but a small
 third-party USB driver then runs as root all the time, which is more attack surface
 (for example a malicious USB device posing as the monitor). It runs root-owned
 copies in `/usr/local/libexec/rapsodo-golf-on-mac/` and logs to
@@ -220,6 +222,8 @@ For developers. The full investigation, including dead ends, is in
 | Fix 4 | Games ask WinRT `Geolocator` for a location, which Wine never grants. A stub `GeolocationPlugin.dll` reports `RGM_GEO_LAT` / `RGM_GEO_LON` / `RGM_GEO_ALT` → [`scripts/geolocation_stub.c`](scripts/geolocation_stub.c) |
 | Fix 5 | Alignment's camera view needs [MediaMTX](https://github.com/bluenviron/mediamtx). The app unzips it with PowerShell, which Wine only stubs, and MediaMTX (Go) hits the same `SIO_UDP_NETRESET` problem as Fix 2. The installer puts a checked, patched copy where the app looks → [`scripts/47-install-mediamtx.sh`](scripts/47-install-mediamtx.sh) |
 | Fix 6 | The app's Chromium under Wine plays only the keyframes of the multi-slice H.264 the app's ffmpeg makes (~1 fps). A same-length edit in `app.asar` adds `-x264-params sliced-threads=0:threads=4` → [`scripts/patch_alignment_ffmpeg.py`](scripts/patch_alignment_ffmpeg.py) |
+| Fix 7 | Less background load: every Windows process Wine starts is analyzed by macOS (`ecosystemd`), and the app started three a second during games just to check the game was still open (plus a Wi-Fi check that can't work under Wine every 15 s). Same-length edits in `app.asar` slow those to 60 s and 1 h → [`scripts/patch_app_polls.py`](scripts/patch_app_polls.py) |
+| Fix 8 | TetherKit kept one CPU core at 100% even with no traffic (its receive thread spun on `sched_yield()`). A two-line patch makes it sleep 500 µs when idle: ~1% idle, ~4% while streaming both cameras → [`patches/tetherkit-rx-idle-sleep.patch`](patches/tetherkit-rx-idle-sleep.patch) |
 | UI | Electron runs with `--no-sandbox --disable-gpu --disable-gpu-compositing --in-process-gpu` |
 
 Each game ships its own `libzmq.dll`, `deviceManagerServer.dll` and
