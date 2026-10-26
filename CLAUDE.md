@@ -91,6 +91,20 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   40 + 45 when the app logs `download game end` (fallback: 15 s with no changes) and no
   game is running. 40/45 skip files already in place (`cmp -s`), so re-runs never
   rewrite a loaded DLL; 40 only backs up a complete stock libzmq.
+- **wineserver crash (10/26/2026):** wineserver segfaulted twice during Studios games
+  (10:38, during a monitor USB reset; 13:18, with a steady link, so the monitor isn't
+  required); every Wine process froze for good. Site: `fd_reselect_async` on a freed
+  socket `struct fd` (use-after-free; most likely `accept_into_socket`'s fd swap while an
+  AFD poll was still queued). Which program in the game triggers it isn't known
+  (`notes/2026-10-26-wineserver-crash-on-monitor-power-cycle.md`).
+  play.sh recovers: launcher alive + no wineserver → `kill -9` every pid that maps this
+  install's `share/wine/nls/locale.nls` (`lsof -t`), keep `*-crashed.log`, re-exec (max 3,
+  `RGM_WINE_RESTARTS`). Its startup also clears frozen leftovers. `kill -SEGV <wineserver>`
+  reproduces the symptom. play.sh sets `ulimit -c 1` so wineserver skips its own
+  SIGSEGV handler (print + `exit(1)`, no report) and a crash leaves `wineserver-*.ips`
+  in `~/Library/Logs/DiagnosticReports` or `/Library/Logs/DiagnosticReports` (seen both).
+  The watcher tracks the app's own server pid, so a `wine reg` restarting a server can't
+  mask a crash; the server path is matched resolved (`pwd -P`), as Wine starts it.
 - Game settings (`miniapp:Practice:SavedSettings`, incl. music) live in
   `C:\ProgramData\Rapsodo\SuperApp\app.db`: a plain Redis-style `set` log, but the
   values are encrypted.
