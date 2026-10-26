@@ -36,6 +36,15 @@ fi
 # The app isn't running (checked above), so anything left in the prefix is stale.
 WINEPREFIX="$RGM_PREFIX" "$RGM_WINE_BIN/wineserver" -k 2>/dev/null || true
 
+# Install any newer version of this project from GitHub, then start over with the
+# new play.sh (see update.sh). After the cleanup above, so no stale Wine process is
+# around while the update re-applies the fixes. RGM_UPDATED stops a second check.
+if [ -z "${RGM_UPDATED:-}" ]; then
+  rc=0
+  "$d/update.sh" || rc=$?
+  [ "$rc" = 3 ] && RGM_UPDATED=1 exec "$d/play.sh" "$@"
+fi
+
 if ! pgrep -f "usb-link.sh" >/dev/null; then
   sudo -v
   # shellcheck disable=SC2024  # log stays user-owned on purpose

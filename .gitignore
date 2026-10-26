@@ -12,3 +12,7 @@ build/
 *.visual-check.*
 # Personal settings
 scripts/env.local.sh
+
+# Auto-update state: installed commit and branch (bootstrap.sh, scripts/update.sh)
+.rgm-version
+.rgm-ref

@@ -86,8 +86,16 @@ Mac app to open. Plug the monitor in over USB-C and play.
    It finds the Rapsodo download, puts this project in `~/rapsodo-golf-on-mac` (keep
    that folder: the app runs scripts from it), sets everything up and creates
    **Rapsodo Golf on Mac** in Applications. Type your Mac password if it asks.
-   Run the same command again any time to update; after the first install it no
-   longer needs the zip and never reinstalls (or downgrades) Rapsodo's app.
+   After the first install it no longer needs the zip and never reinstalls (or
+   downgrades) Rapsodo's app.
+
+**Updates are automatic.** Each time you open the app it checks GitHub (well under
+a second); when there's a newer version it downloads it and re-runs the setup
+before starting (a minute or so, log: `~/Library/Logs/RapsodoGolf-update.log`).
+Offline, it starts the version you have. Installed before 10/26/2026? Run the
+install command once more to get this. To turn it off, put `RGM_AUTO_UPDATE=0` in
+`scripts/env.local.sh` (see [Your location](#play) for that file) and update by
+running the install command again.
 
 <details>
 <summary>What the installer adds to your Mac</summary>
@@ -142,7 +150,7 @@ drives ball flight.
 | iTerm says **Monitor not connected yet** | The app starts anyway. The monitor turns itself off when idle: press its power button. After a replug it can take about 60 seconds to answer, then connect from the app. |
 | **The device manager could not start** | The launcher retries this on its own (up to 3 tries). If iTerm says it still failed, open an issue and attach `~/Library/Logs/RapsodoGolf-Wine-failed.log`. |
 | The Rapsodo app says **Device not found** | Wait a minute and retry. Check `~/Library/Logs/RapsodoGolf-usblink.log` for `feth0 DHCP (re)requested`. |
-| Alignment says **Alignment Couldn't Start** ("a problem while connecting to your device cameras") | Update (run the install command again), then open the app again: it installs the video server alignment needs. If it still fails, open an issue and attach `~/Library/Logs/RapsodoGolf-Wine.log` before reopening the app. |
+| Alignment says **Alignment Couldn't Start** ("a problem while connecting to your device cameras") | Open the app again (it updates itself; if you installed before 10/26/2026, run the install command again first): it installs the video server alignment needs. If it still fails, open an issue and attach `~/Library/Logs/RapsodoGolf-Wine.log` before reopening the app. |
 | Alignment's camera view looks like a **blank gray surface** | That's the real camera, zoomed in. The app shows only the area around the hitting box, so if the monitor is aimed at a ceiling or wall it looks blank. Set it up on the floor facing the ball as the app's instructions say. |
 | In a game the monitor's light turns **red** and it never connects | Red means "ready to connect": the game couldn't connect. A game downloaded while the app is open gets its fixes a few seconds after the download finishes; if you started it right away, close the game and start it again. If it still happens, open an issue with `~/Library/Logs/RapsodoGolf-heal.log`. |
 | A game says **Failed to initialize player / DirectX 11** | Run `~/rapsodo-golf-on-mac/scripts/45-install-dxvk.sh`, then start the game again. |

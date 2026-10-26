@@ -96,6 +96,18 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   values are encrypted.
 - `launcher.c` sets `MVK_CONFIG_LOG_LEVEL=1` + `DXVK_LOG_LEVEL=warn` (games inherit
   them); otherwise MoltenVK logs ~86 MB per 10-minute game session.
+- **Auto-update (this project, 10/26/2026):** play.sh runs `scripts/update.sh` at each
+  launch: GitHub API `commits/<ref>` (sha only, 5 s timeout; ref from `.rgm-ref`,
+  default main) vs `.rgm-version`; if different, downloads `archive/<sha>.tar.gz`
+  (curl and tar must both succeed), swaps files in by rename (running scripts keep
+  their old inode), re-runs `install.sh`, records the sha on success, exits 3 →
+  play.sh re-execs with `RGM_UPDATED=1`. Skipped for git checkouts and
+  `RGM_AUTO_UPDATE=0`. `bootstrap.sh` pins the sha and ref for tarball installs.
+  Installed copies run *their own* update.sh: never rename `scripts/install.sh` /
+  `scripts/play.sh` or change the exit-3 contract. The new install.sh and play.sh
+  inherit the old env.sh's exported paths (`RGM_HOME` etc.), so changing a path
+  default (e.g. the `RapsodoGolf-Wine11` folder) needs migration code, not just a
+  new default. Stale files are never deleted.
 - A Rapsodo app auto-update, or a new game download, undoes the patches →
   `scripts/40-apply-patches.sh`, then `scripts/45-install-dxvk.sh`, then
   `scripts/47-install-mediamtx.sh`.
@@ -124,6 +136,8 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   to type it; never ask for the password in chat.
 
 ## Rules
+- **main ships.** Every push to main reaches every user at their next launch
+  (auto-update). Push only changes that were tested; keep work in progress on a branch.
 - Never commit Rapsodo binaries, installers, or patched copies of them.
 - Keep `scripts/` idempotent; re-run them rather than hand-editing the prefix.
 - Lint shell with `shellcheck -x -e SC1091 scripts/*.sh` before committing.
