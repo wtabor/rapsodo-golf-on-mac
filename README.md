@@ -49,8 +49,8 @@ Mac app to open. Plug the monitor in over USB-C and play.
 
 | | |
 |---|---|
-| ✅ **Works** | App opens, finds the monitor, signs in, runs firmware updates (tested 4.1.9 → 4.1.19). Driving Range opens, connects and arms the monitor. |
-| 🟡 **Not confirmed yet** | Shot capture over a full session (the monitor dropped out twice in testing). Alignment's live camera view (Shot Vision / Impact Vision): fixed 10/25/2026 and tested with test video, not yet with the monitor. |
+| ✅ **Works** | App opens, finds the monitor, signs in, runs firmware updates (tested 4.1.9 → 4.1.19). Alignment shows both live camera views (Shot Vision and Impact Vision, ~18–20 fps; tested with the monitor 10/26/2026). Driving Range opens, connects and arms the monitor. |
+| 🟡 **Not confirmed yet** | Shot capture over a full session (the monitor dropped out twice in testing). |
 | 🖥️ **Tested on** | macOS 26.6 and 27.0.1, M4 Mac, Rapsodo Golf 1.0.0 |
 
 > [!NOTE]
@@ -143,6 +143,7 @@ drives ball flight.
 | **The device manager could not start** | The launcher retries this on its own (up to 3 tries). If iTerm says it still failed, open an issue and attach `~/Library/Logs/RapsodoGolf-Wine-failed.log`. |
 | The Rapsodo app says **Device not found** | Wait a minute and retry. Check `~/Library/Logs/RapsodoGolf-usblink.log` for `feth0 DHCP (re)requested`. |
 | Alignment says **Alignment Couldn't Start** ("a problem while connecting to your device cameras") | Update (run the install command again), then open the app again: it installs the video server alignment needs. If it still fails, open an issue and attach `~/Library/Logs/RapsodoGolf-Wine.log` before reopening the app. |
+| Alignment's camera view looks like a **blank gray surface** | That's the real camera, zoomed in. The app shows only the area around the hitting box, so if the monitor is aimed at a ceiling or wall it looks blank. Set it up on the floor facing the ball as the app's instructions say. |
 | In a game the monitor's light turns **red** and it never connects | Red means "ready to connect": the game couldn't connect. A game downloaded while the app is open gets its fixes a few seconds after the download finishes; if you started it right away, close the game and start it again. If it still happens, open an issue with `~/Library/Logs/RapsodoGolf-heal.log`. |
 | A game says **Failed to initialize player / DirectX 11** | Run `~/rapsodo-golf-on-mac/scripts/45-install-dxvk.sh`, then start the game again. |
 | Something broke after Rapsodo updated itself | Open the app again: it re-applies every fix on each launch. To do it by hand: `~/rapsodo-golf-on-mac/scripts/40-apply-patches.sh` then `~/rapsodo-golf-on-mac/scripts/45-install-dxvk.sh`. |

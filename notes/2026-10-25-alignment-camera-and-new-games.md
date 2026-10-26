@@ -121,13 +121,51 @@ Other causes from the investigation, less likely: the USB link dropping at the
 hand-off (`notes/2026-10-19-monitor-drops-during-play.md`), or the game failing to
 start graphics.
 
-## Not tested (needs the monitor)
+## Tested with the monitor (10/26/2026)
 
-- Alignment steps 2–3 on real hardware: session start, `StartCameraStream`, and
-  ffmpeg reading the monitor's RTSP URL over `feth0`. The URL is logged as
-  `DEBUG: stream-module addPath alignment-shot -> <url>`.
-- CPU with the real camera streams (decode + re-encode, two at once).
-- The alignment UI itself (it needs a connected device).
+MLM2PRO on firmware 4.1.19 over USB. App started from a shell with
+`--remote-debugging-port=9222`, then driven over DevTools (router push to
+`/alignment`, then "Align Now").
+
+- All setup steps pass in about 4 s: MediaMTX, session start, both
+  `StartCameraStream` calls, both ffmpeg publishers, "session setup complete".
+- The monitor's streams: Shot Vision `rtsp://192.168.36.1:554/rapsodo/live`
+  (768x720, 20 fps), Impact Vision `rtsp://192.168.36.1:1554/rapsodo/impact`
+  (640x480, reported 5 fps). Not the 1536x1440 / 480x640 sizes in the app's
+  defaults; ffmpeg handles either.
+- Shot Vision played 213 frames in about 12 s, Impact Vision 203 in about 11 s
+  (~18–20 fps each), 0 dropped. The picture is the live camera.
+- About 7 Mbps over the USB link while streaming, no drops. The Wine processes
+  used 9–16% of a core each.
+- Closing the screen tears down cleanly: every teardown step logs, and no ffmpeg or
+  MediaMTX is left running.
+- The Driving Range then started from Practice, connected in 12 s, started a
+  session and armed. It disarmed 50 ms later because it opened on its Settings
+  screen (the game sends `DisarmDevice` itself while a menu is open).
+
+**"It doesn't look like a real image":** with the monitor lying on a desk aimed at the
+ceiling, the panel showed a flat gray surface. It was the real camera. Checked:
+- Frames pulled straight from the monitor with macOS ffmpeg
+  (`rtsp://192.168.36.1:554/rapsodo/live`, HEVC 768x720, `yuvj420p`) show the same
+  scene as frames copied out of the app's `<video>` element. Brightness matches, and
+  consecutive frames differ (a ceiling fan turning), so the view is live.
+- The panel shows only part of the frame by design. `AlignmentCamera` sizes the video
+  with `focalCoverBox(panel, SHOT_NATIVE 1536x1440, focal point)`: it covers the
+  410x460 panel, then zooms further (up to `MAX_FOCUS_ZOOM` × cover) until the
+  hitting area's center line (from `HittingAreaData`, native coordinates) can sit
+  in the middle of the panel. Only the MLM2X family switches to the stream's real size; for the
+  MLM2PRO the 768x720 stream is exactly half the native size with the same aspect,
+  so the overlay still lines up. Here that showed the bottom-left ~2/3 of the frame:
+  blank ceiling, with the fan cut off at the edge.
+- Turned to face the room, the same view showed the room at once.
+
+So nothing to fix; README now has a troubleshooting row for it.
+
+`tetherkit-cli` used ~80–90% of a core both while streaming (~700 packets/s) and
+with the Range idle (~8 packets/s), so its load doesn't come from the video.
+
+Still not tested: the mid-session game patch with a real game download (only with a
+fake game), and shots in the Range after leaving Settings.
 
 ## Logs to ask for if it still fails
 

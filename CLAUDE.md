@@ -36,13 +36,13 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   (`scripts/geolocation_stub.c`). Shots not yet seen: the monitor dropped out
   twice mid-session (`notes/2026-10-19-monitor-drops-during-play.md`).
 - **Alignment (10/25/2026):** the app's own alignment screen always failed ("Alignment
-  Couldn't Start"). Fixed by Fix 5 + Fix 6 below; tested in the app with test video
-  (27–29 fps per camera), not yet with the monitor
-  (`notes/2026-10-25-alignment-camera-and-new-games.md`). A user's "red light in the
-  Range" is most likely a game downloaded mid-session (unpatched DLLs); play.sh now
+  Couldn't Start"). Fixed by Fix 5 + Fix 6 below. Confirmed with the monitor
+  10/26/2026: all setup steps pass, both live views play (~18–20 fps), teardown is
+  clean (`notes/2026-10-25-alignment-camera-and-new-games.md`). A user's "red light in
+  the Range" is most likely a game downloaded mid-session (unpatched DLLs); play.sh now
   patches those while the app runs. Not confirmed with their logs.
-- **Untested:** `scripts/play.sh` end to end, instrumented shot capture, alignment
-  with the monitor.
+- **Untested:** `scripts/play.sh` end to end, instrumented shot capture, the
+  mid-session game patch with a real download.
 
 ## How it works
 - **Runtime:** Gcenx wine-staging 11.16 (unsigned; Homebrew's Wine casks were disabled
