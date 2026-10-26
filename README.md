@@ -49,8 +49,8 @@ Mac app to open. Plug the monitor in over USB-C and play.
 
 | | |
 |---|---|
-| ✅ **Works** | App opens, finds the monitor, signs in, runs firmware updates (tested 4.1.9 → 4.1.19). Driving Range opens, connects and arms the monitor. The alignment screen shows the monitor's live camera. |
-| 🟡 **Not confirmed yet** | Shot capture over a full session (the monitor dropped out twice in testing). |
+| ✅ **Works** | App opens, finds the monitor, signs in, runs firmware updates (tested 4.1.9 → 4.1.19). Driving Range opens, connects and arms the monitor. |
+| 🟡 **Not confirmed yet** | Shot capture over a full session (the monitor dropped out twice in testing). Alignment's live camera view (Shot Vision / Impact Vision): fixed 10/25/2026 and tested with test video, not yet with the monitor. |
 | 🖥️ **Tested on** | macOS 26.6 and 27.0.1, M4 Mac, Rapsodo Golf 1.0.0 |
 
 > [!NOTE]
@@ -142,6 +142,8 @@ drives ball flight.
 | iTerm says **Monitor not connected yet** | The app starts anyway. The monitor turns itself off when idle: press its power button. After a replug it can take about 60 seconds to answer, then connect from the app. |
 | **The device manager could not start** | The launcher retries this on its own (up to 3 tries). If iTerm says it still failed, open an issue and attach `~/Library/Logs/RapsodoGolf-Wine-failed.log`. |
 | The Rapsodo app says **Device not found** | Wait a minute and retry. Check `~/Library/Logs/RapsodoGolf-usblink.log` for `feth0 DHCP (re)requested`. |
+| Alignment says **Alignment Couldn't Start** ("a problem while connecting to your device cameras") | Update (run the install command again), then open the app again: it installs the video server alignment needs. If it still fails, open an issue and attach `~/Library/Logs/RapsodoGolf-Wine.log` before reopening the app. |
+| In a game the monitor's light turns **red** and it never connects | Red means "ready to connect": the game couldn't connect. A game downloaded while the app is open gets its fixes a few seconds after the download finishes; if you started it right away, close the game and start it again. If it still happens, open an issue with `~/Library/Logs/RapsodoGolf-heal.log`. |
 | A game says **Failed to initialize player / DirectX 11** | Run `~/rapsodo-golf-on-mac/scripts/45-install-dxvk.sh`, then start the game again. |
 | Something broke after Rapsodo updated itself | Open the app again: it re-applies every fix on each launch. To do it by hand: `~/rapsodo-golf-on-mac/scripts/40-apply-patches.sh` then `~/rapsodo-golf-on-mac/scripts/45-install-dxvk.sh`. |
 | The first sign-in times out | Nothing to do: the app retries on its own and the retry works. |
@@ -206,13 +208,16 @@ For developers. The full investigation, including dead ends, is in
 | Fix 2 | 1-byte patch in `deviceManagerServer.exe`: Go's `SIO_UDP_NETRESET` (unimplemented in Wine) → `SIO_UDP_CONNRESET`, so the CoAP certificate request and authentication work → [`scripts/patch_devicemanager.py`](scripts/patch_devicemanager.py) |
 | Fix 3 | Unity games (Driving Range etc.) need D3D11; Wine's wined3d can't create the device on macOS. [DXVK-macOS](https://github.com/Gcenx/DXVK-macOS) (D3D11 → Vulkan → MoltenVK) is enabled per game exe → [`scripts/45-install-dxvk.sh`](scripts/45-install-dxvk.sh) |
 | Fix 4 | Games ask WinRT `Geolocator` for a location, which Wine never grants. A stub `GeolocationPlugin.dll` reports `RGM_GEO_LAT` / `RGM_GEO_LON` / `RGM_GEO_ALT` → [`scripts/geolocation_stub.c`](scripts/geolocation_stub.c) |
+| Fix 5 | Alignment's camera view needs [MediaMTX](https://github.com/bluenviron/mediamtx). The app unzips it with PowerShell, which Wine only stubs, and MediaMTX (Go) hits the same `SIO_UDP_NETRESET` problem as Fix 2. The installer puts a checked, patched copy where the app looks → [`scripts/47-install-mediamtx.sh`](scripts/47-install-mediamtx.sh) |
+| Fix 6 | The app's Chromium under Wine plays only the keyframes of the multi-slice H.264 the app's ffmpeg makes (~1 fps). A same-length edit in `app.asar` adds `-x264-params sliced-threads=0:threads=4` → [`scripts/patch_alignment_ffmpeg.py`](scripts/patch_alignment_ffmpeg.py) |
 | UI | Electron runs with `--no-sandbox --disable-gpu --disable-gpu-compositing --in-process-gpu` |
 
 Each game ships its own `libzmq.dll`, `deviceManagerServer.dll` and
 `GeolocationPlugin.dll`, so [`scripts/40-apply-patches.sh`](scripts/40-apply-patches.sh)
-patches those too. [`scripts/play.sh`](scripts/play.sh) re-runs it and
-`45-install-dxvk.sh` on every launch (about 4 seconds), because Rapsodo updates
-and new game downloads undo them.
+patches those too. [`scripts/play.sh`](scripts/play.sh) re-runs it,
+`45-install-dxvk.sh` and `47-install-mediamtx.sh` on every launch (about 4 seconds),
+because Rapsodo updates and new game downloads undo them. While the app runs, it
+also patches any game downloaded during the session.
 
 ### Built on
 
@@ -231,7 +236,8 @@ and new game downloads undo them.
 - **Third-party pieces** are downloaded or built from their own projects, under
   their own licenses: [Gcenx's Wine builds](https://github.com/Gcenx/macOS_Wine_builds),
   [TetherKit](https://github.com/XiaoMiku01/TetherKit),
-  [DXVK-macOS](https://github.com/Gcenx/DXVK-macOS) and
+  [DXVK-macOS](https://github.com/Gcenx/DXVK-macOS),
+  [MediaMTX](https://github.com/bluenviron/mediamtx) and
   [libzmq](https://github.com/zeromq/libzmq) (rebuilt with the patch in `patches/`).
 - **Your location** stays in the gitignored `scripts/env.local.sh`, never in `env.sh`.
 - **License:** [MIT](LICENSE), except the libzmq patch in `patches/`, which is
@@ -244,7 +250,8 @@ and new game downloads undo them.
   used only to say what it works with.
 - **Rapsodo's terms.** The installer modifies your own installed copy of Rapsodo's
   app (it swaps in a rebuilt `libzmq.dll`, patches one byte in
-  `deviceManagerServer.exe`, and replaces `GeolocationPlugin.dll` in the games).
+  `deviceManagerServer.exe`, edits the alignment video settings in `app.asar`, and
+  replaces `GeolocationPlugin.dll` in the games).
   Rapsodo's [Terms of Use](https://rapsodo.com/pages/terms-of-use) prohibit
   modifying their software. Read them and decide for yourself; using this project
   is your choice and your responsibility.

@@ -30,6 +30,7 @@ fi
 "$d/30-build-libzmq.sh"
 "$d/40-apply-patches.sh"
 "$d/45-install-dxvk.sh"
+"$d/47-install-mediamtx.sh"
 "$d/50-make-launcher.sh"
 "$d/build-tetherkit.sh"
 echo

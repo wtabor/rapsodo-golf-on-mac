@@ -35,7 +35,14 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   monitor (patched game DLLs work). The location prompt is gone
   (`scripts/geolocation_stub.c`). Shots not yet seen: the monitor dropped out
   twice mid-session (`notes/2026-10-19-monitor-drops-during-play.md`).
-- **Untested:** `scripts/play.sh` end to end, instrumented shot capture, alignment.
+- **Alignment (10/25/2026):** the app's own alignment screen always failed ("Alignment
+  Couldn't Start"). Fixed by Fix 5 + Fix 6 below; tested in the app with test video
+  (27–29 fps per camera), not yet with the monitor
+  (`notes/2026-10-25-alignment-camera-and-new-games.md`). A user's "red light in the
+  Range" is most likely a game downloaded mid-session (unpatched DLLs); play.sh now
+  patches those while the app runs. Not confirmed with their logs.
+- **Untested:** `scripts/play.sh` end to end, instrumented shot capture, alignment
+  with the monitor.
 
 ## How it works
 - **Runtime:** Gcenx wine-staging 11.16 (unsigned; Homebrew's Wine casks were disabled
@@ -69,13 +76,29 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   sha256 `46058374…` whose ABI was checked. With no position the game shows
   "Network access required", so `env.sh` defaults to 0/0/0; real values go in the
   gitignored `scripts/env.local.sh` (template `env.local.sh.example`).
+- **Fix 5 — MediaMTX (alignment video):** `startStreamServer` downloads MediaMTX
+  v1.17.0 into `%APPDATA%\super-app-clm\mediamtx\` and unzips it with PowerShell;
+  Wine's `powershell.exe` is a stub (exits 0, extracts nothing). MediaMTX is Go, so it
+  also needs the NETRESET patch. `scripts/47-install-mediamtx.sh` installs a
+  sha256-checked, patched copy (the app only checks the file exists). It runs with an
+  empty config (cwd is the app dir); fine.
+- **Fix 6 — alignment frame rate:** the app re-encodes each camera with ffmpeg
+  `-tune zerolatency` (sliced threads: one slice per core). Its Chromium (Electron 30 /
+  Chrome 124 under Wine) assembles only keyframes of multi-slice H.264 → ~1 fps.
+  `scripts/patch_alignment_ffmpeg.py` does a same-length edit in `app.asar` adding
+  `-x264-params sliced-threads=0:threads=4` (asar integrity fuse is off; `--revert`).
+- Games downloaded while the app runs are unpatched: play.sh watches `games/` and runs
+  40 + 45 when the app logs `download game end` (fallback: 15 s with no changes) and no
+  game is running. 40/45 skip files already in place (`cmp -s`), so re-runs never
+  rewrite a loaded DLL; 40 only backs up a complete stock libzmq.
 - Game settings (`miniapp:Practice:SavedSettings`, incl. music) live in
   `C:\ProgramData\Rapsodo\SuperApp\app.db`: a plain Redis-style `set` log, but the
   values are encrypted.
 - `launcher.c` sets `MVK_CONFIG_LOG_LEVEL=1` + `DXVK_LOG_LEVEL=warn` (games inherit
   them); otherwise MoltenVK logs ~86 MB per 10-minute game session.
 - A Rapsodo app auto-update, or a new game download, undoes the patches →
-  `scripts/40-apply-patches.sh`, then `scripts/45-install-dxvk.sh`.
+  `scripts/40-apply-patches.sh`, then `scripts/45-install-dxvk.sh`, then
+  `scripts/47-install-mediamtx.sh`.
 
 ## Monitor facts (MLM2PRO over USB)
 - Services: SSH `:22`, nginx `:80` ("IP Camera"), ZeroMQ DEALER/ROUTER + CURVE

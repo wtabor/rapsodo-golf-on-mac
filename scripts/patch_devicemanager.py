@@ -6,8 +6,10 @@ WSAIoctl(SIO_UDP_NETRESET). Wine 11 stubs the first and rejects the second
 (WSAEOPNOTSUPP, 10045), which kills the app's CoAP certificate request to the
 monitor and makes APIAuthenticate fail. This rewrites the single
 `mov $0x9800000f,%ebx` (NETRESET) to `mov $0x9800000c,%ebx` (CONNRESET).
+The same fix works for the games' deviceManagerServer.dll and for MediaMTX
+(mediamtx.exe, also Go), which otherwise exits on its first UDP listener.
 
-Usage: patch_devicemanager.py <deviceManagerServer.exe>   (writes <exe>.orig once)
+Usage: patch_devicemanager.py <Go .exe or .dll>   (writes <file>.orig once)
 """
 
 import shutil

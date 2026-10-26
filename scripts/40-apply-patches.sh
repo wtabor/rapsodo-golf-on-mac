@@ -17,13 +17,20 @@ fi
 GEO_SHA256=460583745a1b803ab877ac22bdd9d45a5181cc615bc9fad4e3f4dfd0b935874d
 GAMES="$RGM_PREFIX/drive_c/ProgramData/Rapsodo/SuperApp/games"
 
-# 1) libzmq: swap in the patched build, keep the original once.
+# 1) libzmq: swap in the patched build, keep the original once. Files already in
+#    place are left alone, so re-running while the app runs (play.sh does, for new
+#    games) never rewrites a DLL that is loaded.
 [ -f "$RGM_LIBS_DIR/libzmq.dll.orig" ] || cp "$RGM_LIBS_DIR/libzmq.dll" "$RGM_LIBS_DIR/libzmq.dll.orig"
-cp "$RGM_BUILD/libzmq.dll" "$RGM_LIBS_DIR/libzmq.dll"
+cmp -s "$RGM_BUILD/libzmq.dll" "$RGM_LIBS_DIR/libzmq.dll" || cp "$RGM_BUILD/libzmq.dll" "$RGM_LIBS_DIR/libzmq.dll"
 echo "libzmq.dll replaced (original: libzmq.dll.orig)"
 
 # 2) deviceManagerServer.exe: SIO_UDP_NETRESET -> SIO_UDP_CONNRESET.
 python3 -I "$(dirname "$0")/patch_devicemanager.py" "$RGM_LIBS_DIR/deviceManagerServer.exe"
+
+# 2b) Alignment camera view: one x264 slice per frame, or the app shows ~1 fps.
+#     Warn only: a Rapsodo update that changes these arguments shouldn't stop play.
+python3 -I "$(dirname "$0")/patch_alignment_ffmpeg.py" "$RGM_APP_DIR/resources/app.asar" ||
+  echo "warning: alignment camera view left at ~1 fps (app.asar not patched)" >&2
 
 # 3) Same two fixes for each game. The patched libzmq is only a drop-in for the
 #    exact 4.3.5 build the app ships, so skip any game whose original differs.
@@ -33,9 +40,12 @@ find "$GAMES" -mindepth 6 -maxdepth 6 -path '*_Data/Plugins/x86_64/libzmq.dll' -
 while IFS= read -r -d '' zmq; do
   dir="$(dirname "$zmq")"
   game="${dir#"$GAMES"/}"; game="${game%%_Data/*}"
-  [ -f "$zmq.orig" ] || cp "$zmq" "$zmq.orig"
-  if [ "$(shasum -a 256 "$zmq.orig" | cut -d' ' -f1)" = "$want" ]; then
-    cp "$RGM_BUILD/libzmq.dll" "$zmq"
+  # Only back up a complete stock copy: a .orig taken mid-download would be
+  # trusted forever and the game would never be patched.
+  [ -f "$zmq.orig" ] || [ "$(shasum -a 256 "$zmq" | cut -d' ' -f1)" != "$want" ] ||
+    cp "$zmq" "$zmq.orig"
+  if [ -f "$zmq.orig" ] && [ "$(shasum -a 256 "$zmq.orig" | cut -d' ' -f1)" = "$want" ]; then
+    cmp -s "$RGM_BUILD/libzmq.dll" "$zmq" || cp "$RGM_BUILD/libzmq.dll" "$zmq"
     echo "libzmq.dll replaced: $game"
   else
     echo "skipped libzmq.dll (not the known 4.3.5 build): $game" >&2
@@ -47,7 +57,7 @@ while IFS= read -r -d '' zmq; do
   if [ -f "$geo" ]; then
     [ -f "$geo.orig" ] || cp "$geo" "$geo.orig"
     if [ "$(shasum -a 256 "$geo.orig" | cut -d' ' -f1)" = "$GEO_SHA256" ]; then
-      cp "$RGM_BUILD/GeolocationPlugin.dll" "$geo"
+      cmp -s "$RGM_BUILD/GeolocationPlugin.dll" "$geo" || cp "$RGM_BUILD/GeolocationPlugin.dll" "$geo"
       echo "GeolocationPlugin.dll replaced: $game"
     else
       echo "skipped GeolocationPlugin.dll (unknown build, ABI unchecked): $game" >&2

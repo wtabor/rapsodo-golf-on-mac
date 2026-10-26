@@ -27,7 +27,8 @@ if [ ! -f "$DXVK_DIR/$DXVK_NAME/x64/d3d11.dll" ]; then
 fi
 
 for dll in d3d11 d3d10core; do
-  cp "$DXVK_DIR/$DXVK_NAME/x64/$dll.dll" "$SYS32/$dll.dll"
+  cmp -s "$DXVK_DIR/$DXVK_NAME/x64/$dll.dll" "$SYS32/$dll.dll" ||
+    cp "$DXVK_DIR/$DXVK_NAME/x64/$dll.dll" "$SYS32/$dll.dll"
 done
 echo "DXVK $DXVK_TAG installed into system32"
 

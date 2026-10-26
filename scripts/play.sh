@@ -46,7 +46,8 @@ fi
 # Rapsodo auto-updates and new game downloads undo the fixes; re-applying is
 # idempotent and takes a few seconds.
 heal_log="$RGM_USER_HOME/Library/Logs/RapsodoGolf-heal.log"
-if "$d/40-apply-patches.sh" >"$heal_log" 2>&1 && "$d/45-install-dxvk.sh" >>"$heal_log" 2>&1; then
+if "$d/40-apply-patches.sh" >"$heal_log" 2>&1 && "$d/45-install-dxvk.sh" >>"$heal_log" 2>&1 &&
+  "$d/47-install-mediamtx.sh" >>"$heal_log" 2>&1; then
   echo "Wine fixes checked (log: ~/Library/Logs/RapsodoGolf-heal.log)"
 else
   echo "warning: re-applying the Wine fixes failed; see $heal_log" >&2
@@ -91,5 +92,36 @@ for try in $(seq 1 "$tries"); do
 done
 [ "$result" = ok ] && echo "Rapsodo Golf started."
 
+# A game downloaded while the app runs ships its own unpatched libzmq.dll and
+# deviceManagerServer.dll. The app hands the monitor to the game (light goes red,
+# "ready to connect") and the game can't connect. Patch new games as soon as the
+# app logs "download game end" (or, failing that, once games/ has been unchanged
+# for 15 s), and never while a game is running.
+games="$RGM_PREFIX/drive_c/ProgramData/Rapsodo/SuperApp/games"
+tried=""
+ends=0
+while kill -0 "$pid" 2>/dev/null; do
+  sleep 2
+  [ -d "$games" ] || continue
+  new="$(find "$games" -mindepth 6 -maxdepth 6 -path '*_Data/Plugins/x86_64/libzmq.dll' 2>/dev/null |
+    while IFS= read -r zmq; do [ -f "$zmq.orig" ] || echo "$zmq"; done)" || true
+  # One try per new game, so a game 40 can't patch doesn't loop.
+  [ -n "$new" ] && [ "$new" != "$tried" ] || continue
+  n="$(grep -c "download game end" "$RGM_LOG" 2>/dev/null)" || n=0
+  if [ "$n" -le "$ends" ] && [ -n "$(find "$games" -mtime -15s -print -quit 2>/dev/null)" ]; then
+    continue
+  fi
+  ends=$n
+  pgrep -f 'SuperApp[/\\]games[/\\].*\.exe' >/dev/null && continue
+  tried="$new"
+  echo "New game downloaded; applying the Wine fixes to it."
+  { "$d/40-apply-patches.sh" && "$d/45-install-dxvk.sh"; } >>"$heal_log" 2>&1 ||
+    echo "warning: patching the new game failed; see $heal_log" >&2
+done &
+watcher=$!
+
 # Stay open as long as the app runs, like the exec this replaced.
-wait "$pid"
+rc=0
+wait "$pid" || rc=$?
+kill "$watcher" 2>/dev/null || true
+exit "$rc"
