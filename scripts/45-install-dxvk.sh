@@ -48,3 +48,20 @@ printf '%s\n' "$exes" | sort -u | while IFS= read -r exe; do
   done
   echo "DXVK enabled for $exe"
 done
+
+# Unity saves each game's screen size under HKCU\Software\<company>\<product> (the two
+# lines of <Game>_Data/app.info). A monitor unplugged while Wine ran used to leave Wine
+# reporting a 0x0 display (see display_fix.c); Driving Range then saved 1x1 and
+# crashed at every start ("RenderTextureDesc width must be greater than zero").
+# Reset a saved size that small so the game uses the display's native size.
+[ -d "$GAMES" ] && find "$GAMES" -mindepth 4 -maxdepth 4 -path '*_Data/app.info' | while IFS= read -r info; do
+  key="HKCU\\Software\\$(sed -n 1p "$info" | tr -d '\r')\\$(sed -n 2p "$info" | tr -d '\r')"
+  w="$("$RGM_WINE_BIN/wine" reg query "$key" /v "Screenmanager Resolution Width_h182942802" 2>/dev/null |
+    awk '/REG_DWORD/ {print $NF}' | tr -d '\r')" || true
+  [ -n "$w" ] && [ $((w)) -lt 320 ] || continue
+  for v in "Screenmanager Resolution Width_h182942802" "Screenmanager Resolution Height_h2627697771"; do
+    "$RGM_WINE_BIN/wine" reg delete "$key" /v "$v" /f >/dev/null 2>&1 || true
+  done
+  "$RGM_WINE_BIN/wine" reg add "$key" /v "Screenmanager Resolution Use Native_h1405027254" /t REG_DWORD /d 1 /f >/dev/null
+  echo "reset the saved $((w))-pixel-wide screen size of $key"
+done

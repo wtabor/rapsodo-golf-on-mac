@@ -96,6 +96,19 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   values are encrypted.
 - `launcher.c` sets `MVK_CONFIG_LOG_LEVEL=1` + `DXVK_LOG_LEVEL=warn` (games inherit
   them); otherwise MoltenVK logs ~86 MB per 10-minute game session.
+- **Fix 8 — display layout after a monitor change (10/28/2026):** win32u never
+  re-points its per-source registry links (`...\Control\Video\{gpu}\0000` →
+  `Sources\<id>`) within a session (`REG_OPTION_OPEN_LINK` is ignored on create). So
+  after the primary display changes (unplugging the main external monitor),
+  every process reads a stale layout: no primary, a `WinDisc 0,0-1024,768`
+  placeholder, or the removed monitor's size. Fullscreen games and the cursor then
+  stop short of the screen. `scripts/display_fix.c` (`48-build-display-fix.sh`):
+  play.sh runs `rgm-display-fix.exe watch RapsodoGolf.exe` next to the app. It
+  deletes only the stale links (`OBJ_OPENLINK`) after each layout change and lets a
+  fresh process re-enumerate. `rgm-display-fix.exe show|repair` by hand
+  (`notes/2026-10-28-display-layout-after-monitor-unplug.md`). That bug made Driving
+  Range save a 1x1 screen size and crash at every start. 45 resets any Unity game's
+  saved width under 320 (`Use Native`=1).
 - **Auto-update (this project, 10/26/2026):** play.sh runs `scripts/update.sh` at each
   launch: GitHub API `commits/<ref>` (sha only, 5 s timeout; ref from `.rgm-ref`,
   default main) vs `.rgm-version`; if different, downloads `archive/<sha>.tar.gz`
