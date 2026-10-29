@@ -10,12 +10,13 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
 ## Response style
 - Answer in a few sentences. No preamble, no recap. Detail goes in `notes/`, not chat.
 
-## Where things stand (10/19/2026)
+## Where things stand (10/29/2026)
 - **Working:** app connects, authenticates, and updated the monitor firmware
   4.1.9 → 4.1.19 under Wine. The owner confirmed it works end to end.
 - **Only confirmed launch route:** `scripts/play.sh` run from a terminal app that has
-  Local Network permission (iTerm). It starts the USB link, re-applies the patches
-  (`40`, `45`), and starts the app. The Dock app now hands off to iTerm running
+  Local Network permission (iTerm). It auto-updates (`update.sh`), starts the USB link,
+  re-applies the patches (`40`, `45`, `47`), starts the app, then the `48` display helper
+  and the crash / new-game watcher. The Dock app now hands off to iTerm running
   `play.sh` (`open-in-iterm`; works as of 10/20/2026 after the one-time Automation
   prompt, which TCC records for `/bin/bash`). The app icon is built from the
   installed app's `dist/icon.png` (`scripts/make_icon.swift`). `60-install-usb-daemon.sh`
@@ -41,8 +42,12 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   clean (`notes/2026-10-25-alignment-camera-and-new-games.md`). A user's "red light in
   the Range" is most likely a game downloaded mid-session (unpatched DLLs); play.sh now
   patches those while the app runs. Not confirmed with their logs.
-- **Untested:** `scripts/play.sh` end to end, instrumented shot capture, the
-  mid-session game patch with a real download.
+- **Untested (10/29/2026; needs the monitor or the owner):** instrumented shot capture
+  and real shots; the mid-session game patch with a real download; a real TetherKit
+  bulk-IN stall (only stubs and a manual kill so far); a real Wine crash from a monitor
+  power cycle under the current play.sh; Driving Range x3 and arming in a Studios round;
+  how Unity re-fits a game that is open during a display unplug. Done: play.sh end to
+  end from the Dock, including Wine-crash recovery (10/26 and 10/28 notes).
 
 ## How it works
 - **Runtime:** Gcenx wine-staging 11.16 (unsigned; Homebrew's Wine casks were disabled
@@ -54,16 +59,19 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   `scripts/usb-link.sh` (root) restarts TetherKit when the monitor re-enumerates and
   re-applies DHCP when macOS drops the temporary `ipconfig set` service. It also
   restarts TetherKit when its log shows `failed to resubmit a bulk IN transfer`
-  (`LIBUSB_ERROR_PIPE`) and `192.168.36.1` stops answering ping. TetherKit never
+  (`LIBUSB_ERROR_PIPE`) and `192.168.36.1` stops answering ping (SIGTERM, up to 15 s for
+  TetherKit's own teardown, then SIGKILL and `ifconfig feth1/feth0 destroy`, since only a
+  clean exit removes the pair). TetherKit never
   recovers from that stall on its own; the app showed "Device not connected" with
   the monitor plugged in (`notes/2026-10-28-tetherkit-bulk-in-stall.md`).
-  `build-tetherkit.sh` applies `patches/tetherkit-rx-idle-sleep.patch` (v0.1.5): its RX
+  **Fix 8:** `build-tetherkit.sh` applies `patches/tetherkit-rx-idle-sleep.patch` (v0.1.5): its RX
   thread spun on `sched_yield()` (~1 P-core at all times); sleeping 500 µs instead cut it
   to ~1% idle and ~4% while streaming both cameras (680 pps, 7.4 Mbps, 0 drops, 20 fps;
   10/26/2026). The binary is replaced by rename (macOS caches code signatures per vnode).
   A running TetherKit keeps the old binary until usb-link.sh restarts. The LaunchDaemon's
-  root-owned copy (`60-install-usb-daemon.sh`) updates only when 60 is re-run;
-  build-tetherkit.sh prints a note when it differs.
+  root-owned copies (`60-install-usb-daemon.sh`: TetherKit, usb-link.sh, env.sh) update
+  only when 60 is re-run; build-tetherkit.sh prints a `note:` when any of them differs,
+  and update.sh repeats installer `note:` lines in the iTerm window.
 - **Fix 1 — libzmq:** libzmq 4.3.5's `make_fdpair_tcpip` sends 1 MB over a blocking
   loopback socket before reading (zeromq #1608 workaround). Wine on macOS deadlocks.
   `scripts/30-build-libzmq.sh` cross-builds a patched DLL (mingw-w64 UCRT, CURVE via
@@ -129,7 +137,7 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   values are encrypted.
 - `launcher.c` sets `MVK_CONFIG_LOG_LEVEL=1` + `DXVK_LOG_LEVEL=warn` (games inherit
   them); otherwise MoltenVK logs ~86 MB per 10-minute game session.
-- **Fix 8 — display layout after a monitor change (10/28/2026):** win32u never
+- **Fix 9 — display layout after a monitor change (10/28/2026):** win32u never
   re-points its per-source registry links (`...\Control\Video\{gpu}\0000` →
   `Sources\<id>`) within a session (`REG_OPTION_OPEN_LINK` is ignored on create). So
   after the primary display changes (unplugging the main external monitor),
@@ -146,7 +154,8 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   launch: GitHub API `commits/<ref>` (sha only, 5 s timeout; ref from `.rgm-ref`,
   default main) vs `.rgm-version`; if different, downloads `archive/<sha>.tar.gz`
   (curl and tar must both succeed), swaps files in by rename (running scripts keep
-  their old inode), re-runs `install.sh`, records the sha on success, exits 3 →
+  their old inode; plain `cp`, so mtimes are fresh; 40/48 rebuild their C helpers by
+  source sha256, not mtime), re-runs `install.sh`, records the sha on success, exits 3 →
   play.sh re-execs with `RGM_UPDATED=1`. Skipped for git checkouts and
   `RGM_AUTO_UPDATE=0`. `bootstrap.sh` pins the sha and ref for tarball installs.
   Installed copies run *their own* update.sh: never rename `scripts/install.sh` /

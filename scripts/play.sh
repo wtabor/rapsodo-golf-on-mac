@@ -10,6 +10,9 @@
 set -euo pipefail
 d="$(cd "$(dirname "$0")" && pwd)"
 . "$d/env.sh"
+# Homebrew's tools (mingw-w64 for 40's and 48's small builds) may not be on PATH in
+# the iTerm window the Dock app opens; install.sh does the same.
+command -v brew >/dev/null || [ ! -x /opt/homebrew/bin/brew ] || eval "$(/opt/homebrew/bin/brew shellenv)"
 
 # Opened from the Dock app, the iTerm window closes when this exits: keep errors on
 # screen until the user has read them.
@@ -99,6 +102,18 @@ if ! pgrep -f "usb-link.sh" >/dev/null; then
   sudo "$d/usb-link.sh" >"$RGM_USER_HOME/Library/Logs/RapsodoGolf-usblink.log" 2>&1 &
   echo "USB link started (log: ~/Library/Logs/RapsodoGolf-usblink.log)"
 fi
+# The optional always-on USB link (60-install-usb-daemon.sh) runs root-owned copies
+# that updates can't refresh. Checked here at every launch, not only by the installer,
+# because an installed older update.sh hides the installer's note in its log.
+daemon_dir=/usr/local/libexec/rapsodo-golf-on-mac
+if [ -e "$daemon_dir/tetherkit-cli" ] && {
+  ! cmp -s "$daemon_dir/tetherkit-cli" "$RGM_HOME/tetherkit-cli" ||
+    ! cmp -s "$daemon_dir/usb-link.sh" "$d/usb-link.sh" ||
+    ! cmp -s "$daemon_dir/env.sh" "$d/env.sh"
+}; then
+  echo "note: the always-on USB link still runs an older version. Update it with:"
+  echo "  sudo \"$d/60-install-usb-daemon.sh\""
+fi
 
 # Rapsodo auto-updates and new game downloads undo the fixes; re-applying is
 # idempotent and takes a few seconds.
@@ -158,12 +173,24 @@ for try in $(seq 1 "$tries"); do
 done
 [ "$result" = ok ] && echo "Rapsodo Golf started."
 
+# The app's own server. Once it's gone, a new one (a `wine reg` below would start
+# one) doesn't bring the frozen app back, so watch this pid, not just any server.
+# Taken before the display helper starts: after a crash at startup, the helper's
+# wine would start a fresh server that looks like the app's.
+srv="$(server_pid)" || srv=""
+app_server_alive() { if [ -n "$srv" ]; then is_server "$srv"; else server_running; fi; }
+
 # Plugging in or unplugging a monitor while Wine runs leaves it with a stale display
 # layout: games size fullscreen to the wrong screen and the cursor can't reach part
-# of it. This repairs the layout after each change and exits with the app.
-if "$d/48-build-display-fix.sh" >>"$heal_log" 2>&1; then
+# of it. This repairs the layout after each change and exits with the app. Only
+# started while the app and its server are up.
+if [ -z "$srv" ] || ! kill -0 "$pid" 2>/dev/null; then
+  :
+elif "$d/48-build-display-fix.sh" >>"$heal_log" 2>&1; then
   WINEPREFIX="$RGM_PREFIX" WINEDEBUG=-all MVK_CONFIG_LOG_LEVEL=1 \
     "$RGM_WINE_BIN/wine" "$RGM_BUILD/rgm-display-fix.exe" watch RapsodoGolf.exe >>"$heal_log" 2>&1 &
+  # It exits with the app (or kill_wine stops it); disown so a kill prints no job notice.
+  disown
 else
   echo "warning: building the display fix failed; see $heal_log" >&2
 fi
@@ -176,10 +203,6 @@ fi
 games="$RGM_PREFIX/drive_c/ProgramData/Rapsodo/SuperApp/games"
 tried=""
 ends=0
-# The app's own server. Once it's gone, a new one (a `wine reg` below would start
-# one) doesn't bring the frozen app back, so watch this pid, not just any server.
-srv="$(server_pid)" || srv=""
-app_server_alive() { if [ -n "$srv" ]; then is_server "$srv"; else server_running; fi; }
 while kill -0 "$pid" 2>/dev/null; do
   sleep 2
   # Wine's server crashed while the app runs: close the frozen app and game so

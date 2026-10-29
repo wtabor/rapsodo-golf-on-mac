@@ -26,9 +26,14 @@ cmake --build "$src/build" -j "$(sysctl -n hw.ncpu)" --target tetherkit >/dev/nu
 cp "$src/build/bin/tetherkit-cli" "$RGM_HOME/tetherkit-cli.new"
 mv -f "$RGM_HOME/tetherkit-cli.new" "$RGM_HOME/tetherkit-cli"
 echo "Built $RGM_HOME/tetherkit-cli"
-# The optional LaunchDaemon (60-install-usb-daemon.sh) runs its own root-owned copy.
-daemon_tk=/usr/local/libexec/rapsodo-golf-on-mac/tetherkit-cli
-if [ -e "$daemon_tk" ] && ! cmp -s "$daemon_tk" "$RGM_HOME/tetherkit-cli"; then
-  echo "note: the always-on USB link still runs an older TetherKit. Update it with:" >&2
+# The optional LaunchDaemon (60-install-usb-daemon.sh) runs its own root-owned
+# copies of TetherKit, usb-link.sh and env.sh; updates can't refresh them without sudo.
+daemon_dir=/usr/local/libexec/rapsodo-golf-on-mac
+if [ -e "$daemon_dir/tetherkit-cli" ] && {
+  ! cmp -s "$daemon_dir/tetherkit-cli" "$RGM_HOME/tetherkit-cli" ||
+    ! cmp -s "$daemon_dir/usb-link.sh" "$RGM_REPO/scripts/usb-link.sh" ||
+    ! cmp -s "$daemon_dir/env.sh" "$RGM_REPO/scripts/env.sh"
+}; then
+  echo "note: the always-on USB link still runs an older version. Update it with:" >&2
   echo "  sudo \"$RGM_REPO/scripts/60-install-usb-daemon.sh\"" >&2
 fi

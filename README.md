@@ -155,6 +155,7 @@ drives ball flight.
 | Alignment's camera view looks like a **blank gray surface** | That's the real camera, zoomed in. The app shows only the area around the hitting box, so if the monitor is aimed at a ceiling or wall it looks blank. Set it up on the floor facing the ball as the app's instructions say. |
 | In a game the monitor's light turns **red** and it never connects | Red means "ready to connect": the game couldn't connect. A game downloaded while the app is open gets its fixes a few seconds after the download finishes; if you started it right away, close the game and start it again. If it still happens, open an issue with `~/Library/Logs/RapsodoGolf-heal.log`. |
 | The app and game **freeze** (game clock stops, nothing responds), e.g. after turning the monitor off and on during a game | Wine itself crashed. iTerm says **Wine crashed** and restarts the app on its own within about 20 seconds. If it keeps happening, open an issue and attach `~/Library/Logs/RapsodoGolf-Wine-crashed.log` and Wine's newest crash report (the newest `wineserver` entry under **Crash Reports** in the **Console** app). |
+| After plugging in or unplugging a monitor, a fullscreen game is the **wrong size** or the **cursor can't reach** part of the screen | Nothing to do in most cases: the display helper repairs Wine's screen layout within a few seconds, and games started afterwards fit the screen. A game that was already open may need closing and starting again. |
 | A game says **Failed to initialize player / DirectX 11** | Run `~/rapsodo-golf-on-mac/scripts/45-install-dxvk.sh`, then start the game again. |
 | Something broke after Rapsodo updated itself | Open the app again: it re-applies every fix on each launch. To do it by hand: `~/rapsodo-golf-on-mac/scripts/40-apply-patches.sh` then `~/rapsodo-golf-on-mac/scripts/45-install-dxvk.sh`. |
 | The first sign-in times out | Nothing to do: the app retries on its own and the retry works. |
@@ -187,8 +188,8 @@ Undo with `sudo rm /etc/pam.d/sudo_local`. It falls back to the password when To
 ID isn't available (lid closed, external keyboard without Touch ID).
 
 **Always on** installs TetherKit as a LaunchDaemon. Updates don't refresh that copy:
-when the installer prints "the always-on USB link still runs an older TetherKit", run
-the command it shows. No prompt at all, but a small
+when the installer or an update prints "the always-on USB link still runs an older
+version", run the command it shows. No prompt at all, but a small
 third-party USB driver then runs as root all the time, which is more attack surface
 (for example a malicious USB device posing as the monitor). It runs root-owned
 copies in `/usr/local/libexec/rapsodo-golf-on-mac/` and logs to
@@ -225,14 +226,16 @@ For developers. The full investigation, including dead ends, is in
 | Fix 6 | The app's Chromium under Wine plays only the keyframes of the multi-slice H.264 the app's ffmpeg makes (~1 fps). A same-length edit in `app.asar` adds `-x264-params sliced-threads=0:threads=4` → [`scripts/patch_alignment_ffmpeg.py`](scripts/patch_alignment_ffmpeg.py) |
 | Fix 7 | Less background load: every Windows process Wine starts is analyzed by macOS (`ecosystemd`), and the app started three a second during games just to check the game was still open (plus a Wi-Fi check that can't work under Wine every 15 s). Same-length edits in `app.asar` slow those to 60 s and 1 h → [`scripts/patch_app_polls.py`](scripts/patch_app_polls.py) |
 | Fix 8 | TetherKit kept one CPU core at 100% even with no traffic (its receive thread spun on `sched_yield()`). A two-line patch makes it sleep 500 µs when idle: ~1% idle, ~4% while streaming both cameras → [`patches/tetherkit-rx-idle-sleep.patch`](patches/tetherkit-rx-idle-sleep.patch) |
+| Fix 9 | After a monitor is unplugged or plugged in while Wine runs, Wine keeps a stale screen layout, so fullscreen games use the wrong size and the cursor can't reach part of the screen (Driving Range even saved a 1×1 size and crashed at every start). A small helper watches next to the app and repairs the layout after each change; the fixes step also resets a game's saved size if it's tiny → [`scripts/display_fix.c`](scripts/display_fix.c), [`scripts/48-build-display-fix.sh`](scripts/48-build-display-fix.sh) |
 | UI | Electron runs with `--no-sandbox --disable-gpu --disable-gpu-compositing --in-process-gpu` |
 
 Each game ships its own `libzmq.dll`, `deviceManagerServer.dll` and
 `GeolocationPlugin.dll`, so [`scripts/40-apply-patches.sh`](scripts/40-apply-patches.sh)
 patches those too. [`scripts/play.sh`](scripts/play.sh) re-runs it,
-`45-install-dxvk.sh` and `47-install-mediamtx.sh` on every launch (about 4 seconds),
-because Rapsodo updates and new game downloads undo them. While the app runs, it
-also patches any game downloaded during the session.
+`45-install-dxvk.sh`, `47-install-mediamtx.sh` and `48-build-display-fix.sh` on every
+launch (about 4 seconds), because Rapsodo updates and new game downloads undo them.
+While the app runs, it also patches any game downloaded during the session, runs the
+display helper (Fix 9), and restarts the app if Wine itself crashes.
 
 ### Built on
 
@@ -265,8 +268,8 @@ also patches any game downloaded during the session.
   used only to say what it works with.
 - **Rapsodo's terms.** The installer modifies your own installed copy of Rapsodo's
   app (it swaps in a rebuilt `libzmq.dll`, patches one byte in
-  `deviceManagerServer.exe`, edits the alignment video settings in `app.asar`, and
-  replaces `GeolocationPlugin.dll` in the games).
+  `deviceManagerServer.exe`, edits the alignment video settings and two background
+  check timers in `app.asar`, and replaces `GeolocationPlugin.dll` in the games).
   Rapsodo's [Terms of Use](https://rapsodo.com/pages/terms-of-use) prohibit
   modifying their software. Read them and decide for yourself; using this project
   is your choice and your responsibility.

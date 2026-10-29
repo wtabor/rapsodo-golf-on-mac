@@ -47,10 +47,12 @@ fi
 
 # Swap each file in by rename, never by rewriting it: bash reads a running script
 # (this one, play.sh, usb-link.sh) from the open file as it goes. Your
-# scripts/env.local.sh isn't in the download, so it's kept.
+# scripts/env.local.sh isn't in the download, so it's kept. No `cp -p`: the
+# download carries commit-time mtimes, and "rebuild if the source is newer" checks
+# need the swapped-in files to look new.
 if ! (cd "$tmp" && find . -type f) | while IFS= read -r f; do
   mkdir -p "$RGM_REPO/$(dirname "$f")" &&
-    cp -p "$tmp/$f" "$RGM_REPO/$f.rgm-new" &&
+    cp "$tmp/$f" "$RGM_REPO/$f.rgm-new" &&
     mv -f "$RGM_REPO/$f.rgm-new" "$RGM_REPO/$f" || exit 1
 done; then
   echo "warning: couldn't write the update into $RGM_REPO; it will retry next launch." >&2
@@ -59,10 +61,14 @@ fi
 
 # Re-apply everything with the new scripts. Rapsodo's app isn't reinstalled.
 # Record the version only on success, so a failed install is retried next launch.
+start=$(($(wc -l <"$log") + 1))
 if "$RGM_REPO/scripts/install.sh" >>"$log" 2>&1; then
   echo "$sha" >"$version_file"
   echo "Updated to ${sha:0:7}."
 else
   echo "warning: the update's install step failed; it will retry next launch. See $log" >&2
 fi
+# Show the installer's "note:" lines (and their indented follow-up lines) in the
+# window, e.g. that the always-on USB link needs its sudo update.
+tail -n +"$start" "$log" | awk '/^note:/ { p = 1; print; next } p && /^  / { print; next } { p = 0 }' >&2
 exit 3

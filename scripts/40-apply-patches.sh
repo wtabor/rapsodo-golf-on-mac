@@ -9,9 +9,14 @@ set -euo pipefail
 [ -d "$RGM_LIBS_DIR" ] || { echo "app not installed: $RGM_LIBS_DIR" >&2; exit 1; }
 [ -f "$RGM_BUILD/libzmq.dll" ] || "$(dirname "$0")/30-build-libzmq.sh"
 geo_src="$(dirname "$0")/geolocation_stub.c"
-if [ ! -f "$RGM_BUILD/GeolocationPlugin.dll" ] || [ "$geo_src" -nt "$RGM_BUILD/GeolocationPlugin.dll" ]; then
+# Rebuild when the source changed by content: an auto-update can install a changed
+# source with an mtime older than the last build.
+geo_want="$(shasum -a 256 "$geo_src" | cut -d' ' -f1)"
+if [ ! -f "$RGM_BUILD/GeolocationPlugin.dll" ] ||
+  [ "$(cat "$RGM_BUILD/GeolocationPlugin.dll.src.sha256" 2>/dev/null)" != "$geo_want" ]; then
   mkdir -p "$RGM_BUILD"
   x86_64-w64-mingw32-gcc -shared -O2 -s -o "$RGM_BUILD/GeolocationPlugin.dll" "$geo_src"
+  echo "$geo_want" >"$RGM_BUILD/GeolocationPlugin.dll.src.sha256"
 fi
 # The only GeolocationPlugin.dll whose ABI geolocation_stub.c was checked against.
 GEO_SHA256=460583745a1b803ab877ac22bdd9d45a5181cc615bc9fad4e3f4dfd0b935874d

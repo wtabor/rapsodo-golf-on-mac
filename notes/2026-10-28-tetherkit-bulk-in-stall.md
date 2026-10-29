@@ -46,7 +46,8 @@ no clicks.
 TetherKit's output is also copied (`tee`) to a temp file. On each 5 s check, if it
 contains `failed to resubmit a bulk IN transfer` **and** `ping -c 2 -t 3 192.168.36.1`
 fails, usb-link.sh logs `USB receive stalled; restarting TetherKit`, sends SIGTERM
-(SIGKILL after 5 s), and its loop starts TetherKit again. Requiring the ping
+(SIGKILL after 15 s, then `ifconfig feth1/feth0 destroy`; changed 10/29/2026, see below),
+and its loop starts TetherKit again. Requiring the ping
 failure keeps one lost transfer that didn't stop the link from forcing a reconnect.
 
 The script is swapped in by rename, so a running usb-link.sh keeps the old version.
@@ -74,3 +75,13 @@ the log through `tee`, `feth0` got its lease, the monitor answered ping, and the
 app reconnected and authenticated by itself at 17:04:11.
 
 Not yet tested: a real stall (no way to trigger one on demand).
+
+## 10/29/2026: longer stop, leftover interfaces
+A review of TetherKit v0.1.5's teardown (`runtime.cc`, `data_channel.cc`) found that
+its clean exit can take ~5 s (it drains cancelled USB transfers, `kDrainTimeout`), and
+only a clean exit destroys `feth0`/`feth1`. The old 5 s SIGKILL could land first; a
+killed TetherKit leaves the pair, the next one gets `feth2`, and usb-link.sh keeps
+watching `feth0`. The watchdog now waits up to 15 s, then SIGKILLs and destroys the
+pair. Sandbox test (fake TetherKit that ignores SIGTERM): SIGKILL at ~15 s, both
+destroys after it, next run back on `feth0`/`feth1`. Still not tested with a real stall.
+

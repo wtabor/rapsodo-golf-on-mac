@@ -50,8 +50,9 @@ held the stray `SymbolicLinkValue` entries.
 ## Fix
 
 `scripts/display_fix.c` → `rgm-display-fix.exe`, built by
-`scripts/48-build-display-fix.sh` (mingw, rebuilt when the source is newer; also
-run by install.sh).
+`scripts/48-build-display-fix.sh` (mingw; rebuilt when `display_fix.c`'s sha256 differs
+from `rgm-display-fix.exe.src.sha256`, since 10/29/2026: an auto-update can install a
+changed source with an older mtime; also run by install.sh).
 
 - `repair`: deletes only the logical-index link keys. Each is opened with
   `OBJ_OPENLINK` and must have a REG_LINK `SymbolicLinkValue` and no `GPUID` value,

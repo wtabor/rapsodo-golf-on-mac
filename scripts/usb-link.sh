@@ -35,9 +35,18 @@ while true; do
     if grep -q "failed to resubmit a bulk IN transfer" "$TKLOG" &&
       ! ping -c 2 -t 3 192.168.36.1 >/dev/null 2>&1; then
       echo "$(date +%T) USB receive stalled; restarting TetherKit"
+      # TetherKit's own teardown can take ~5 s (it drains cancelled transfers),
+      # and only its clean exit destroys feth0/feth1: give it 15 s.
       kill $PID 2>/dev/null
-      for _ in 1 2 3 4 5; do kill -0 $PID 2>/dev/null || break; sleep 1; done
-      kill -0 $PID 2>/dev/null && kill -9 $PID
+      for _ in $(seq 1 15); do kill -0 $PID 2>/dev/null || break; sleep 1; done
+      if kill -0 $PID 2>/dev/null; then
+        kill -9 $PID
+        sleep 1
+        # A killed TetherKit leaves its interfaces behind; the next one would get
+        # feth2 while this script watches feth0.
+        ifconfig feth1 destroy 2>/dev/null
+        ifconfig feth0 destroy 2>/dev/null
+      fi
       break
     fi
     sleep 5
