@@ -52,7 +52,11 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   RNDIS driver; TetherKit (userspace, libusb + `feth`) bridges it. The monitor runs
   DHCP: it is `192.168.36.1`, the Mac gets `192.168.36.x` on `feth0`.
   `scripts/usb-link.sh` (root) restarts TetherKit when the monitor re-enumerates and
-  re-applies DHCP when macOS drops the temporary `ipconfig set` service.
+  re-applies DHCP when macOS drops the temporary `ipconfig set` service. It also
+  restarts TetherKit when its log shows `failed to resubmit a bulk IN transfer`
+  (`LIBUSB_ERROR_PIPE`) and `192.168.36.1` stops answering ping. TetherKit never
+  recovers from that stall on its own; the app showed "Device not connected" with
+  the monitor plugged in (`notes/2026-10-28-tetherkit-bulk-in-stall.md`).
   `build-tetherkit.sh` applies `patches/tetherkit-rx-idle-sleep.patch` (v0.1.5): its RX
   thread spun on `sched_yield()` (~1 P-core at all times); sleeping 500 µs instead cut it
   to ~1% idle and ~4% while streaming both cameras (680 pps, 7.4 Mbps, 0 drops, 20 fps;
