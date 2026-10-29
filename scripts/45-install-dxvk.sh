@@ -54,7 +54,9 @@ done
 # reporting a 0x0 display (see display_fix.c); Driving Range then saved 1x1 and
 # crashed at every start ("RenderTextureDesc width must be greater than zero").
 # Reset a saved size that small so the game uses the display's native size.
-[ -d "$GAMES" ] && find "$GAMES" -mindepth 4 -maxdepth 4 -path '*_Data/app.info' | while IFS= read -r info; do
+# `|| find`, not `&& find`: this is the script's last command, and a fresh install
+# has no games/ folder yet (the app creates it on the first game download).
+[ ! -d "$GAMES" ] || find "$GAMES" -mindepth 4 -maxdepth 4 -path '*_Data/app.info' | while IFS= read -r info; do
   key="HKCU\\Software\\$(sed -n 1p "$info" | tr -d '\r')\\$(sed -n 2p "$info" | tr -d '\r')"
   w="$("$RGM_WINE_BIN/wine" reg query "$key" /v "Screenmanager Resolution Width_h182942802" 2>/dev/null |
     awk '/REG_DWORD/ {print $NF}' | tr -d '\r')" || true
