@@ -158,6 +158,16 @@ for try in $(seq 1 "$tries"); do
 done
 [ "$result" = ok ] && echo "Rapsodo Golf started."
 
+# Plugging in or unplugging a monitor while Wine runs leaves it with a stale display
+# layout: games size fullscreen to the wrong screen and the cursor can't reach part
+# of it. This repairs the layout after each change and exits with the app.
+if "$d/48-build-display-fix.sh" >>"$heal_log" 2>&1; then
+  WINEPREFIX="$RGM_PREFIX" WINEDEBUG=-all MVK_CONFIG_LOG_LEVEL=1 \
+    "$RGM_WINE_BIN/wine" "$RGM_BUILD/rgm-display-fix.exe" watch RapsodoGolf.exe >>"$heal_log" 2>&1 &
+else
+  echo "warning: building the display fix failed; see $heal_log" >&2
+fi
+
 # A game downloaded while the app runs ships its own unpatched libzmq.dll and
 # deviceManagerServer.dll. The app hands the monitor to the game (light goes red,
 # "ready to connect") and the game can't connect. Patch new games as soon as the
