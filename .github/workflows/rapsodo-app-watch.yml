@@ -1,0 +1,114 @@
+# Watch for Rapsodo Golf PC app releases and check them against this project's fixes.
+#
+# Once a day this reads Rapsodo's public update feed (the one the app updates itself
+# from). For a release this repo hasn't checked yet, it runs
+# scripts/rapsodo-compat-check.py (download, sha512 check, unpack, run every patch on
+# a copy) and opens an issue with the result, labelled rapsodo-release. The issue
+# title (version + sha512 prefix) is the record of what's been checked, so the
+# workflow never commits (a commit to main would make every user's play.sh update).
+#
+# GitHub turns scheduled workflows off in public repos after 60 days without
+# repository activity; if that happens, re-enable it under Actions.
+name: Watch Rapsodo app releases
+
+on:
+  schedule:
+    - cron: "23 14 * * *" # daily, 14:23 UTC
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "Feed to check: prod, or Rapsodo's pre-release test channel"
+        type: choice
+        options: [prod, test]
+        default: prod
+      dry_run:
+        description: "Only write the report to the run summary; open no issue"
+        type: boolean
+        default: false
+      force:
+        description: "Check even if an issue for this release already exists"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: rapsodo-app-watch
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CHANNEL: ${{ inputs.channel || 'prod' }}
+      DRY_RUN: ${{ inputs.dry_run || false }}
+      FORCE: ${{ inputs.force || false }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the update feed
+        id: feed
+        run: |
+          read -r version sha512 < <(python3 -I scripts/rapsodo-compat-check.py --channel "$CHANNEL" --feed-only)
+          key="Rapsodo PC app $version ($CHANNEL, sha512 ${sha512:0:12})"
+          echo "Feed: $key"
+          echo "key=$key" >> "$GITHUB_OUTPUT"
+
+      - name: Skip releases already checked
+        id: seen
+        env:
+          KEY: ${{ steps.feed.outputs.key }}
+        run: |
+          # Read the titles first, so a failing gh fails this step instead of looking
+          # like "not checked yet" (which would download again and open a duplicate).
+          titles="$(gh issue list --label rapsodo-release --state all --limit 500 --json title --jq '.[].title')"
+          if [ "$FORCE" != true ] && printf '%s\n' "$titles" | grep -Fq -- "$KEY"; then
+            echo "Already checked: $KEY"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install 7-Zip
+        if: steps.seen.outputs.skip != 'true'
+        run: command -v 7z || { sudo apt-get update -qq && sudo apt-get install -y -qq p7zip-full; }
+
+      - name: Check the release
+        if: steps.seen.outputs.skip != 'true'
+        id: check
+        run: |
+          set +e
+          python3 -I scripts/rapsodo-compat-check.py --channel "$CHANNEL" --report report.md
+          rc=$?
+          set -e
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          [ ! -f report.md ] || cat report.md >> "$GITHUB_STEP_SUMMARY"
+          # 2: the check itself couldn't run (feed, download, unpack). Fail the run, so
+          # GitHub reports it, and try again tomorrow; open no issue.
+          [ "$rc" != 2 ]
+
+      - name: Open an issue
+        if: steps.seen.outputs.skip != 'true' && env.DRY_RUN != 'true'
+        env:
+          KEY: ${{ steps.feed.outputs.key }}
+          RC: ${{ steps.check.outputs.rc }}
+          OWNER: ${{ github.repository_owner }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ "$RC" = 0 ]; then verdict="every fix still applies"; else verdict="needs work"; fi
+          gh label create rapsodo-release --color 1d76db \
+            --description "A Rapsodo PC app release checked by the watch workflow" 2>/dev/null || true
+          {
+            echo "@$OWNER Rapsodo's update feed has a release this repo hadn't checked."
+            echo
+            cat report.md
+            echo
+            echo "Checked by [this run]($RUN_URL). Reproduce locally:"
+            echo '`python3 scripts/rapsodo-compat-check.py --channel '"$CHANNEL"'`'
+          } > body.md
+          gh issue create --title "$KEY: $verdict" --label rapsodo-release --body-file body.md

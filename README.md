@@ -237,6 +237,24 @@ launch (about 4 seconds), because Rapsodo updates and new game downloads undo th
 While the app runs, it also patches any game downloaded during the session, runs the
 display helper (Fix 9), and restarts the app if Wine itself crashes.
 
+### When Rapsodo updates its app
+
+Rapsodo's app updates itself from a public feed. A daily GitHub workflow
+([`.github/workflows/rapsodo-app-watch.yml`](.github/workflows/rapsodo-app-watch.yml))
+reads that feed; for each new release it downloads the installer, checks its hash,
+unpacks it and checks a copy of everything Fixes 1, 2, 5, 6 and 7 patch or depend on,
+plus the folders and log lines the scripts rely on
+([`scripts/rapsodo-compat-check.py`](scripts/rapsodo-compat-check.py)), then opens an
+issue labelled `rapsodo-release` with the result. To check by
+hand (needs 7-Zip: `brew install p7zip`):
+
+```bash
+python3 ~/rapsodo-golf-on-mac/scripts/rapsodo-compat-check.py
+```
+
+It doesn't run Wine, the games or the monitor, and game updates (which come through
+the signed-in app) aren't covered.
+
 ### Built on
 
 <div align="center">

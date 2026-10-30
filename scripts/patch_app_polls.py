@@ -18,17 +18,37 @@ Both edits are the same length, so the asar index stays valid (the asar integrit
 fuse is off in this build). Each edit is applied or reverted on its own; one that
 isn't found exactly once is skipped with a warning (exit status 1).
 
+The game check's timer is a minified variable (`Pae` in 1.0.0, `due` in the 0.6.0 test
+build, where the surrounding code changed too), so it is found by structure: the
+`setInterval(..., <var>)` right after the app's only "DEBUG: game is running" log, then
+that variable's one `<var> = 1e3,` shortly before it.
+
 Usage: patch_app_polls.py [--revert] <app.asar>
 """
 
 import mmap
+import re
 import sys
 from pathlib import Path
 
-EDITS = [
-    ("game check", b"Pae = 1e3, Bae = () => {", b"Pae = 6e4, Bae = () => {"),
-    ("Wi-Fi poll", b"WIFI_INTERVAL_TIME=15e3,", b"WIFI_INTERVAL_TIME=36e5,"),
-]
+GAME_LOG = b"DEBUG: game is running"
+GAME_ORIG, GAME_NEW = b"1e3", b"6e4"
+WIFI_ORIG, WIFI_NEW = b"WIFI_INTERVAL_TIME=15e3,", b"WIFI_INTERVAL_TIME=36e5,"
+
+
+def game_check_sites(m) -> dict:
+    """Offsets of the game-check timer's value: {b"1e3": [...], b"6e4": [...]}."""
+    sites = {GAME_ORIG: [], GAME_NEW: []}
+    log = m.find(GAME_LOG)
+    if log < 0 or m.find(GAME_LOG, log + 1) >= 0:
+        return sites
+    use = re.compile(rb"\}, ([\w$]+)\);").search(m, log, log + 1000)
+    if not use:
+        return sites
+    for value in sites:
+        decl = re.compile(rb"(?<![\w$.])" + re.escape(use.group(1)) + rb" = " + value + rb",")
+        sites[value] = [d.end() - len(value) - 1 for d in decl.finditer(m, max(0, log - 20000), log)]
+    return sites
 
 
 def main() -> int:
@@ -36,18 +56,25 @@ def main() -> int:
     asar = Path(sys.argv[-1])
     rc = 0
     with open(asar, "r+b") as f, mmap.mmap(f.fileno(), 0) as m:
-        for name, orig, new in EDITS:
-            find, put = (new, orig) if revert else (orig, new)
-            if m.find(put) >= 0 and m.find(find) < 0:
+        # (name, offsets of the text to replace, offsets already replaced, replacement)
+        sites = game_check_sites(m)
+        wifi = {v: [i.start() for i in re.finditer(re.escape(v), m)] for v in (WIFI_ORIG, WIFI_NEW)}
+        edits = [
+            ("game check", sites[GAME_NEW], sites[GAME_ORIG], GAME_ORIG) if revert
+            else ("game check", sites[GAME_ORIG], sites[GAME_NEW], GAME_NEW),
+            ("Wi-Fi poll", wifi[WIFI_NEW], wifi[WIFI_ORIG], WIFI_ORIG) if revert
+            else ("Wi-Fi poll", wifi[WIFI_ORIG], wifi[WIFI_NEW], WIFI_NEW),
+        ]
+        for name, find, done, put in edits:
+            if done and not find:
                 print(f"{name}: already {'reverted' if revert else 'patched'}")
                 continue
-            pos = m.find(find)
-            if pos < 0 or m.find(find, pos + 1) >= 0:
+            if len(find) != 1:
                 print(f"{name}: not found exactly once in {asar}; skipped", file=sys.stderr)
                 rc = 1
                 continue
-            m[pos : pos + len(put)] = put
-            print(f"{name}: {'reverted' if revert else 'patched'} at offset {pos}")
+            m[find[0] : find[0] + len(put)] = put
+            print(f"{name}: {'reverted' if revert else 'patched'} at offset {find[0]}")
         m.flush()
     return rc
 

@@ -111,8 +111,8 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   (~20–25/s at most; ~18/s measured at one core). The app's
   `cmd /c tasklist` game check (every 1 s while a game runs) outran it: ~1 core busy for
   minutes after a game. `scripts/patch_app_polls.py` (same-length `app.asar` edits,
-  `--revert`): game check `Pae = 1e3` → `6e4` (60 s; the `cmd /c` child's exit already
-  reports a normal quit), Wi-Fi `netsh` poll `WIFI_INTERVAL_TIME=15e3` → `36e5` (no Wi-Fi
+  `--revert`): game check `<var> = 1e3` → `6e4` (60 s; the `cmd /c` child's exit already
+  reports a normal quit; `<var>` is found by structure, `Pae` in 1.0.0, `due` in 0.6.0), Wi-Fi `netsh` poll `WIFI_INTERVAL_TIME=15e3` → `36e5` (no Wi-Fi
   data under Wine anyway). Studios: ecosystemd 55%+ → ~10% (measured at 10 s).
 - Games downloaded while the app runs are unpatched: play.sh watches `games/` and runs
   40 + 45 when the app logs `download game end` (fallback: 15 s with no changes) and no
@@ -163,6 +163,21 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   inherit the old env.sh's exported paths (`RGM_HOME` etc.), so changing a path
   default (e.g. the `RapsodoGolf-Wine11` folder) needs migration code, not just a
   new default. Stale files are never deleted.
+- **Rapsodo release watch (10/30/2026):** the app updates itself (electron-updater,
+  generic provider) from `https://storage.googleapis.com/super-app-clm-prod/latest.yml`
+  (`updaterFeedURL` in main.js; `resources/app-update.yml` says `-beta` but is
+  overridden). `.github/workflows/rapsodo-app-watch.yml` reads it daily; for a release
+  with no `rapsodo-release` issue yet (title = version + sha512 prefix, so nothing is
+  committed) it runs `scripts/rapsodo-compat-check.py`: download, sha512, `7z` the NSIS
+  installer → `$PLUGINSDIR/app-64.7z` → app, then on copies: stock libzmq sha256 (Fix 1),
+  patch_devicemanager / patch_alignment_ffmpeg / patch_app_polls (Fixes 2, 6, 7), the
+  MediaMTX tag the app downloads vs 47's `MTX_TAG` (Fix 5), the log lines play.sh keys
+  on, and the feed URL. Exit 0 pass / 1 needs work / 2 couldn't run (job fails, no
+  issue). `--channel test` reads Rapsodo's pre-release feed (manual dispatch only).
+  Also checks the userData name (`super-app-clm`, 47's folder) and the games path 40/45/
+  play.sh hardcode. Test 0.6.0 (10/27/2026) passes since Fix 7 finds its timer by
+  structure (`notes/2026-10-30-rapsodo-release-watch.md`). Scheduled workflows in public
+  repos stop after 60 days without repository activity.
 - A Rapsodo app auto-update, or a new game download, undoes the patches →
   `scripts/40-apply-patches.sh`, then `scripts/45-install-dxvk.sh`, then
   `scripts/47-install-mediamtx.sh`.
