@@ -28,10 +28,21 @@ cat > "$A/Contents/Info.plist" <<'EOF'
 </dict></plist>
 EOF
 
+# Names Wine's processes after their programs (see appname.c). Intel for Wine (it runs
+# under Rosetta), plus arm64. Removed first: macOS caches code signatures per file, and a
+# running Wine may still have the old one loaded.
+names="$A/Contents/MacOS/rgm-appname.dylib"
+rm -f "$names"
+clang -O2 -Wall -arch x86_64 -arch arm64 -dynamiclib -framework CoreFoundation \
+  -o "$names" "$RGM_REPO/scripts/appname.c"
+# Signed on its own, or the bundle's ad-hoc signature below fails on it.
+codesign --force --sign - "$names" >/dev/null 2>&1 || echo "warning: couldn't sign $names" >&2
+
 rm -f "$A/Contents/MacOS/launch"
 clang -O2 -Wall -o "$A/Contents/MacOS/launch" "$RGM_REPO/scripts/launcher.c" \
   -DRGM_WINE="\"$RGM_WINE_BIN/wine\"" -DRGM_PREFIX="\"$RGM_PREFIX\"" \
-  -DRGM_APP_DIR="\"$RGM_APP_DIR\"" -DRGM_LOG="\"$RGM_LOG\""
+  -DRGM_APP_DIR="\"$RGM_APP_DIR\"" -DRGM_LOG="\"$RGM_LOG\"" \
+  -DRGM_APPNAME_DYLIB="\"$names\""
 
 # Entry point. Wine started straight from Finder gets no Local Network access
 # (macOS never prompts), so hand off to iTerm, which has it, and run play.sh there.

@@ -19,6 +19,9 @@ extern char **environ;
 #ifndef RGM_WINE
 #error "RGM_WINE not defined"
 #endif
+#ifndef RGM_APPNAME_DYLIB
+#error "RGM_APPNAME_DYLIB not defined"
+#endif
 
 int main(void) {
     setenv("WINEPREFIX", RGM_PREFIX, 1);
@@ -31,6 +34,11 @@ int main(void) {
     // MoltenVK, which clashes with Wine's ("MVKBlockObserver is implemented in both");
     // with them ranked off, libav decodes instead.
     setenv("GST_PLUGIN_FEATURE_RANK", "vtdec:NONE,vtdec_hw:NONE,avfassetsrc:NONE", 0);
+    // Show the app and each game under its own name instead of "wine" in the Dock,
+    // Command-Tab and Force Quit (appname.c). Only if it's there: dyld refuses to start
+    // a process whose inserted library is missing.
+    if (access(RGM_APPNAME_DYLIB, R_OK) == 0)
+        setenv("DYLD_INSERT_LIBRARIES", RGM_APPNAME_DYLIB, 0);
     if (chdir(RGM_APP_DIR) != 0) {
         perror("chdir " RGM_APP_DIR);
         return 1;

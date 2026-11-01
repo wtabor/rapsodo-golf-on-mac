@@ -144,6 +144,16 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   `GST_PLUGIN_FEATURE_RANK=vtdec:NONE,vtdec_hw:NONE,avfassetsrc:NONE`: GStreamer's
   applemedia (and vulkan) plugins link their own MoltenVK, and loading it next to
   Wine's gives "Class MVKBlockObserver is implemented in both"; libav decodes instead.
+  And `DYLD_INSERT_LIBRARIES=<bundle>/Contents/MacOS/rgm-appname.dylib` (only if it
+  exists; dyld won't start a process whose inserted library is missing), built by 50
+  from `scripts/appname.c`: on `NSApplicationDidFinishLaunchingNotification` it sets the
+  process's LaunchServices display name (Chromium's `_LSSetApplicationInformationItem`
+  / `_kLSDisplayNameKey`) from argv[0], which Wine rewrites to the Windows exe:
+  "Rapsodo Golf", "Driving Range", "Target Range", "Rapsodo Studios", else the exe name.
+  Without it every Wine process is "wine" in the Dock, Command-Tab and Force Quit.
+  `lsappinfo setinfo` from outside is silently ignored; only the process itself can.
+  Verified 11/01/2026 with `NSRunningApplication.localizedName` (app + Range, through
+  `cmd /c` like the app starts games); the menu bar's bold app name isn't changed.
 - **Fix 10 — GStreamer for game video (11/01/2026):** Gcenx's Wine
   needs GStreamer.framework for all users; `winegstreamer.so` links `@rpath/libgst*`
   (1.28, compat 2802) via `/Library/Frameworks/GStreamer.framework/Libraries`. Without

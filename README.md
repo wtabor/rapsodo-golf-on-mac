@@ -233,6 +233,7 @@ For developers. The full investigation, including dead ends, is in
 | Fix 10 | Wine plays video (Media Foundation, which Unity's video player uses) through [GStreamer](https://gstreamer.freedesktop.org/), which this Wine build expects as `GStreamer.framework`. Without it the Driving Range's swing video can't even be opened. The installer adds GStreamer's official universal runtime → [`scripts/46-install-gstreamer.sh`](scripts/46-install-gstreamer.sh) |
 | Fix 11 | Even with GStreamer, the swing video stayed blank. Unity passes each video frame between two Direct3D devices, which DXVK on a Mac can't do, so the fixes step makes each game's `UnityPlayer.dll` decode video into ordinary memory instead (one renamed function name) → [`scripts/patch_unity_video.py`](scripts/patch_unity_video.py). And Wine's default MP4 reader gets the frame times of these videos wrong, so Unity skipped every frame; the installer switches Wine to its newer, FFmpeg-based reader → [`scripts/46-install-gstreamer.sh`](scripts/46-install-gstreamer.sh) |
 | UI | Electron runs with `--no-sandbox --disable-gpu --disable-gpu-compositing --in-process-gpu` |
+| Names | The app and each game show under their own names (Rapsodo Golf, Driving Range, ...) in the Dock, Command-Tab and Force Quit, not "wine": a small library the launcher loads into Wine renames each process → [`scripts/appname.c`](scripts/appname.c) |
 
 Each game ships its own `libzmq.dll`, `deviceManagerServer.dll` and
 `GeolocationPlugin.dll`, so [`scripts/40-apply-patches.sh`](scripts/40-apply-patches.sh)
