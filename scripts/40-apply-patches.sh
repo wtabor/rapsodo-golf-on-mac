@@ -43,6 +43,12 @@ python3 -I "$(dirname "$0")/patch_alignment_ffmpeg.py" "$RGM_APP_DIR/resources/a
 python3 -I "$(dirname "$0")/patch_app_polls.py" "$RGM_APP_DIR/resources/app.asar" ||
   echo "warning: some app polls left at their original rate (app.asar not fully patched)" >&2
 
+# 2d) Resizable window: the app's minimum window size is the whole screen and its page
+#     only zooms up, so a smaller window showed a cropped page. Now 800x450, with the
+#     page zoomed down to fit. Warn only.
+python3 -I "$(dirname "$0")/patch_app_window.py" "$RGM_APP_DIR/resources/app.asar" ||
+  echo "warning: the app's window may not shrink properly (app.asar not fully patched)" >&2
+
 # 3) Same two fixes for each game. The patched libzmq is only a drop-in for the
 #    exact 4.3.5 build the app ships, so skip any game whose original differs.
 want="$(shasum -a 256 "$RGM_LIBS_DIR/libzmq.dll.orig" | cut -d' ' -f1)"

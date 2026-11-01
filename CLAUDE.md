@@ -118,6 +118,21 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   `--revert`): game check `<var> = 1e3` → `6e4` (60 s; the `cmd /c` child's exit already
   reports a normal quit; `<var>` is found by structure, `Pae` in 1.0.0, `due` in 0.6.0), Wi-Fi `netsh` poll `WIFI_INTERVAL_TIME=15e3` → `36e5` (no Wi-Fi
   data under Wine anyway). Studios: ecosystemd 55%+ → ~10% (measured at 10 s).
+- **Fix 12 — resizable app window (11/01/2026):** `dist-electron/main.js` creates the
+  main window with `minWidth`/`minHeight` = the primary display's `workAreaSize`,
+  maximizes it when the splash closes and after every game (`Ne.maximize(), Ne.show()`),
+  and its `responsive-zoom` resize handler (`pm`, logs `[SL-303 responsive-zoom] content
+  WxH ... -> zoom Z`) zooms only up (1 up to 1920 px wide, max 1.25). Under Wine the Mac
+  window can be dragged smaller, but Wine doesn't pass a resize of a *maximized* window
+  on: Mac window 1920x1265 while the app still had 3840x2530 `IsZoomed`, page cropped.
+  Un-maximized with `ShowWindow(SW_RESTORE)` + `SetWindowPos` it resized (content
+  1592x966, zoom 0.829). `scripts/patch_app_window.py` (run by 40, same-length edits,
+  `--revert`): window opens at the work area's size (normal, not maximized) with a
+  minimum of 800x450 (`resizable: !0`, Electron's default, makes room); both
+  `maximize()` calls become `focus()`; zoom = min(width/1920, height/1080) when below 1,
+  floor 0.25 (`|| 1` keeps zoom 1 for a 0x0, minimized, window), up-zoom as before.
+  Found by structure, the `maximize` sites from their literal text (a regex starting with
+  a name crawls through the 280 MB archive).
 - Games downloaded while the app runs are unpatched: play.sh watches `games/` and runs
   40 + 45 when the app logs `download game end` (fallback: 15 s with no changes) and no
   game is running. 40/45 skip files already in place (`cmp -s`), so re-runs never

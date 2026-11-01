@@ -61,6 +61,7 @@ IMPACT = {
     "Fix 5": "alignment says \"Alignment Couldn't Start\"",
     "Fix 6": "alignment video at ~1 fps (warn-only patch)",
     "Fix 7": "more background CPU during games (warn-only patch)",
+    "Fix 12": "the app's window can't be made smaller than the screen without cropping (warn-only patch)",
     "play.sh": "play.sh's device-manager retry or new-game patching stops working",
     "watch": "this watcher reads the wrong feed",
 }
@@ -205,6 +206,8 @@ def check(app: Path, work: Path, feed_url: str | None = None) -> list[tuple[str,
         rows.append(("PASS" if rc == 0 else "FAIL", "Fix 6", "alignment ffmpeg edit applies", out.splitlines()[-1] if out else ""))
         rc, out = run_patcher("patch_app_polls.py", copy)
         rows.append(("PASS" if rc == 0 else "FAIL", "Fix 7", "game-check and Wi-Fi poll edits apply", "; ".join(out.splitlines())))
+        rc, out = run_patcher("patch_app_window.py", copy)
+        rows.append(("PASS" if rc == 0 else "FAIL", "Fix 12", "window minimum-size and page-zoom edits apply", "; ".join(out.splitlines())))
 
         # The MediaMTX release the app downloads, found through its URL template so a
         # renamed minified variable doesn't matter: the last `<name> = "v..."` before it.
