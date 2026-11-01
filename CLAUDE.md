@@ -140,6 +140,14 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   values are encrypted.
 - `launcher.c` sets `MVK_CONFIG_LOG_LEVEL=1` + `DXVK_LOG_LEVEL=warn` (games inherit
   them); otherwise MoltenVK logs ~86 MB per 10-minute game session.
+- **Fix 10 — GStreamer for game video (11/01/2026, branch until verified):** Gcenx's Wine
+  needs GStreamer.framework for all users; `winegstreamer.so` links `@rpath/libgst*`
+  (1.28, compat 2802) via `/Library/Frameworks/GStreamer.framework/Libraries`. Without
+  it Media Foundation can't open the Range's swing video (`MFCreateSourceReaderFromURL`
+  = MF_E_UNEXPECTED), so Unity's VideoPlayer shows nothing. `46-install-gstreamer.sh`
+  installs the official universal 1.28.8 runtime pkg (sha256-pinned) with
+  `sudo installer`; skips an x86_64 libgstreamer >= 2802
+  (`notes/2026-11-01-user-bugs-pkg-config-and-swing-video.md`).
 - **Fix 9 — display layout after a monitor change (10/28/2026):** win32u never
   re-points its per-source registry links (`...\Control\Video\{gpu}\0000` →
   `Sources\<id>`) within a session (`REG_OPTION_OPEN_LINK` is ignored on create). So

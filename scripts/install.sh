@@ -30,6 +30,7 @@ fi
 "$d/30-build-libzmq.sh"
 "$d/40-apply-patches.sh"
 "$d/45-install-dxvk.sh"
+"$d/46-install-gstreamer.sh"
 "$d/47-install-mediamtx.sh"
 "$d/48-build-display-fix.sh"
 "$d/50-make-launcher.sh"

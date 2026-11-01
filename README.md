@@ -107,6 +107,8 @@ Anything you already have is skipped.
   developer tools.
 - **mingw-w64, cmake, libusb** from Homebrew, to build the patched pieces.
 - **[iTerm](https://iterm2.com/)**, which starts the app (see [Why iTerm](#why-iterm)).
+- **[GStreamer](https://gstreamer.freedesktop.org/)** (its official macOS runtime, in
+  `/Library/Frameworks`), which Wine needs to play video in the games.
 - **Wine**, **DXVK** and Rapsodo's app, all inside
   `~/Library/Application Support/RapsodoGolf-Wine11/`.
 
@@ -156,6 +158,7 @@ drives ball flight.
 | In a game the monitor's light turns **red** and it never connects | Red means "ready to connect": the game couldn't connect. A game downloaded while the app is open gets its fixes a few seconds after the download finishes; if you started it right away, close the game and start it again. If it still happens, open an issue with `~/Library/Logs/RapsodoGolf-heal.log`. |
 | The app and game **freeze** (game clock stops, nothing responds), e.g. after turning the monitor off and on during a game | Wine itself crashed. iTerm says **Wine crashed** and restarts the app on its own within about 20 seconds. If it keeps happening, open an issue and attach `~/Library/Logs/RapsodoGolf-Wine-crashed.log` and Wine's newest crash report (the newest `wineserver` entry under **Crash Reports** in the **Console** app). |
 | After plugging in or unplugging a monitor, a fullscreen game is the **wrong size** or the **cursor can't reach** part of the screen | Nothing to do in most cases: the display helper repairs Wine's screen layout within a few seconds, and games started afterwards fit the screen. A game that was already open may need closing and starting again. |
+| The Driving Range's **swing video** doesn't play | Open the app again so it updates (it installs GStreamer, which Wine needs for video; macOS asks for your password once). If you installed before this fix and it doesn't ask, run the install command again. |
 | A game says **Failed to initialize player / DirectX 11** | Run `~/rapsodo-golf-on-mac/scripts/45-install-dxvk.sh`, then start the game again. |
 | Something broke after Rapsodo updated itself | Open the app again: it re-applies every fix on each launch. To do it by hand: `~/rapsodo-golf-on-mac/scripts/40-apply-patches.sh` then `~/rapsodo-golf-on-mac/scripts/45-install-dxvk.sh`. |
 | The first sign-in times out | Nothing to do: the app retries on its own and the retry works. |
@@ -227,6 +230,7 @@ For developers. The full investigation, including dead ends, is in
 | Fix 7 | Less background load: every Windows process Wine starts is analyzed by macOS (`ecosystemd`), and the app started three a second during games just to check the game was still open (plus a Wi-Fi check that can't work under Wine every 15 s). Same-length edits in `app.asar` slow those to 60 s and 1 h → [`scripts/patch_app_polls.py`](scripts/patch_app_polls.py) |
 | Fix 8 | TetherKit kept one CPU core at 100% even with no traffic (its receive thread spun on `sched_yield()`). A two-line patch makes it sleep 500 µs when idle: ~1% idle, ~4% while streaming both cameras → [`patches/tetherkit-rx-idle-sleep.patch`](patches/tetherkit-rx-idle-sleep.patch) |
 | Fix 9 | After a monitor is unplugged or plugged in while Wine runs, Wine keeps a stale screen layout, so fullscreen games use the wrong size and the cursor can't reach part of the screen (Driving Range even saved a 1×1 size and crashed at every start). A small helper watches next to the app and repairs the layout after each change; the fixes step also resets a game's saved size if it's tiny → [`scripts/display_fix.c`](scripts/display_fix.c), [`scripts/48-build-display-fix.sh`](scripts/48-build-display-fix.sh) |
+| Fix 10 | Wine plays video (Media Foundation, which Unity's video player uses) through [GStreamer](https://gstreamer.freedesktop.org/), which this Wine build expects as `GStreamer.framework`. Without it the Driving Range's swing video can't even be opened. The installer adds GStreamer's official universal runtime → [`scripts/46-install-gstreamer.sh`](scripts/46-install-gstreamer.sh) |
 | UI | Electron runs with `--no-sandbox --disable-gpu --disable-gpu-compositing --in-process-gpu` |
 
 Each game ships its own `libzmq.dll`, `deviceManagerServer.dll` and
