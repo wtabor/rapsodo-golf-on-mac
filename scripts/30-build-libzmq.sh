@@ -28,6 +28,11 @@ fi
 # includes afunix.h under MSVC. The original DLL used the TCP signaler anyway.
 sed -i '' 's|^#cmakedefine ZMQ_HAVE_IPC$|/* IPC off for MinGW cross-build */|; s|^#cmakedefine ZMQ_HAVE_STRUCT_SOCKADDR_UN$|/* sockaddr_un off */|' \
   zeromq-4.3.5/builds/cmake/platform.hpp.in
+# Findsodium.cmake requires pkg-config even though libsodium's paths are passed in
+# below; on a Mac without Homebrew's pkgconf, CMake stops with "Could NOT find
+# PkgConfig (missing: PKG_CONFIG_EXECUTABLE)". It's only a hint there: make it optional.
+sed -i '' 's|^find_package(PkgConfig REQUIRED)|find_package(PkgConfig)|' \
+  zeromq-4.3.5/builds/cmake/Modules/Findsodium.cmake
 
 cat > mingw.cmake <<'EOF'
 set(CMAKE_SYSTEM_NAME Windows)
@@ -42,7 +47,7 @@ EOF
 
 S="$PWD/libsodium-win64"
 rm -rf build
-cmake -S zeromq-4.3.5 -B build -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+cmake -S zeromq-4.3.5 -B build -Wno-dev -Wno-deprecated -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
   -DCMAKE_TOOLCHAIN_FILE="$PWD/mingw.cmake" -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_SYSTEM_VERSION=10.0 -DZMQ_WIN32_WINNT=0x0A00 \
   -DWITH_LIBSODIUM=ON -DENABLE_CURVE=ON -DPOLLER=select \

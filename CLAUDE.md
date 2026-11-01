@@ -76,6 +76,9 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   loopback socket before reading (zeromq #1608 workaround). Wine on macOS deadlocks.
   `scripts/30-build-libzmq.sh` cross-builds a patched DLL (mingw-w64 UCRT, CURVE via
   the app's own `libsodium-26.dll`, select poller, IPC off). 71/71 exports match.
+  libzmq's `Findsodium.cmake` has `find_package(PkgConfig REQUIRED)` although the
+  sodium paths are passed in; 30 drops `REQUIRED`, so no pkg-config is needed (a user
+  without Homebrew's pkgconf hit "Could NOT find PkgConfig", 11/01/2026).
 - **Fix 2 — deviceManagerServer.exe (Go):** Go's UDP setup calls `SIO_UDP_NETRESET`,
   which Wine doesn't implement → the CoAP cert request (UDP `:5683`) fails →
   `APIAuthenticate` fails. `scripts/patch_devicemanager.py` rewrites the single
