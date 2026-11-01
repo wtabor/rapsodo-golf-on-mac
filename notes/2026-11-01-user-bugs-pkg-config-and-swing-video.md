@@ -140,5 +140,16 @@ XVP_DISABLE_FRC=1, no DXGI manager, Unity's stride lookup):
   last 3 frames of the 3 fps video (decoder drain race, gone with tracing on). Never on
   the system-memory path.
 
+Also on the owner's Mac: `scripts/install.sh` end to end (what auto-update runs) exits 0
+in 41 s; all three UnityPlayer.dll "already patched", the MP4 reader switch set. Each game
+started on its patched UnityPlayer.dll (Driving Range, Target Range, Studios, launched
+straight from Wine with the launcher's environment): Direct3D 11 up, no crash, closed
+cleanly by `taskkill`. Launched that way, outside the app, their device managers can't
+start ("Server not ready yet (Internal)" in the ranges; "The Device Manager could not
+start: no port could be bound" looping in Studios), with the app open and the monitor
+answering ping. An app-started Range logs none of that, so it comes from the standalone
+launch, not from these fixes. It may explain the Range that once hung at
+"Server not ready yet" earlier today.
+
 **Not verified yet:** the video playing in the Range itself (needs a shot, or clicking
 an earlier shot after restarting the game with the patched UnityPlayer.dll).
