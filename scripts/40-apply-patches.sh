@@ -75,3 +75,12 @@ while IFS= read -r -d '' zmq; do
     fi
   fi
 done
+
+# 5) Video (the Range's swing video): Unity hands each decoded frame between two D3D11
+#    devices through a shared handle, which DXVK-macOS can't do. Make Unity decode into
+#    system memory instead (games/<id>/<version>/UnityPlayer.dll). Warn only.
+find "$GAMES" -mindepth 3 -maxdepth 3 -name UnityPlayer.dll -print0 |
+while IFS= read -r -d '' unity; do
+  python3 -I "$(dirname "$0")/patch_unity_video.py" "$unity" ||
+    echo "warning: video may stay blank in ${unity#"$GAMES"/} (UnityPlayer.dll not patched)" >&2
+done

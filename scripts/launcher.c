@@ -27,6 +27,10 @@ int main(void) {
     // ~500k "VkDescriptorPool exhausted" warnings (~86 MB) per 10-minute session.
     setenv("MVK_CONFIG_LOG_LEVEL", "1", 0);  // MoltenVK: errors only
     setenv("DXVK_LOG_LEVEL", "warn", 0);
+    // Game video decodes through GStreamer. Its VideoToolbox plugins link a second
+    // MoltenVK, which clashes with Wine's ("MVKBlockObserver is implemented in both");
+    // with them ranked off, libav decodes instead.
+    setenv("GST_PLUGIN_FEATURE_RANK", "vtdec:NONE,vtdec_hw:NONE,avfassetsrc:NONE", 0);
     if (chdir(RGM_APP_DIR) != 0) {
         perror("chdir " RGM_APP_DIR);
         return 1;

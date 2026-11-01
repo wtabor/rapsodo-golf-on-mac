@@ -46,7 +46,8 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   and real shots; the mid-session game patch with a real download; a real TetherKit
   bulk-IN stall (only stubs and a manual kill so far); a real Wine crash from a monitor
   power cycle under the current play.sh; Driving Range x3 and arming in a Studios round;
-  how Unity re-fits a game that is open during a display unplug. Done: play.sh end to
+  how Unity re-fits a game that is open during a display unplug; the Range's shot and
+  swing videos with Fix 11 (verified offline only, 11/01/2026). Done: play.sh end to
   end from the Dock, including Wine-crash recovery (10/26 and 10/28 notes).
 
 ## How it works
@@ -139,7 +140,10 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   `C:\ProgramData\Rapsodo\SuperApp\app.db`: a plain Redis-style `set` log, but the
   values are encrypted.
 - `launcher.c` sets `MVK_CONFIG_LOG_LEVEL=1` + `DXVK_LOG_LEVEL=warn` (games inherit
-  them); otherwise MoltenVK logs ~86 MB per 10-minute game session.
+  them); otherwise MoltenVK logs ~86 MB per 10-minute game session. It also sets
+  `GST_PLUGIN_FEATURE_RANK=vtdec:NONE,vtdec_hw:NONE,avfassetsrc:NONE`: GStreamer's
+  applemedia (and vulkan) plugins link their own MoltenVK, and loading it next to
+  Wine's gives "Class MVKBlockObserver is implemented in both"; libav decodes instead.
 - **Fix 10 — GStreamer for game video (11/01/2026):** Gcenx's Wine
   needs GStreamer.framework for all users; `winegstreamer.so` links `@rpath/libgst*`
   (1.28, compat 2802) via `/Library/Frameworks/GStreamer.framework/Libraries`. Without
@@ -149,8 +153,31 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   `sudo installer`; skips an x86_64 libgstreamer >= 2802. Then pre-builds GStreamer's
   plugin list (`~/.cache/gstreamer-1.0/registry.x86_64.bin`; the first scan took ~60 s
   under Rosetta). Verified: the real ShotVideo.mp4 decodes 30/30 frames through Media
-  Foundation; swing video in the Range not yet seen
-  (`notes/2026-11-01-user-bugs-pkg-config-and-swing-video.md`).
+  Foundation (`notes/2026-11-01-user-bugs-pkg-config-and-swing-video.md`).
+- **Fix 11 — game video frames (11/01/2026):** with GStreamer in place the Range's
+  video panel stayed blank at 00:00. Two causes, both in Player.log:
+  - `WindowsVideoMedia error 0x80070057 while reading` + `Context: Failed getting shared
+    handle from IDXGIResource`, once per frame. With D3D11, Unity's WindowsVideoMedia
+    decodes on its own D3D11 device and opens each frame on the render device via
+    `GetSharedHandle` → `OpenSharedResource`. DXVK-macOS can't share textures
+    ("VK_KHR_EXTERNAL_MEMORY_WIN32 not supported"; `GetSharedHandle` = E_INVALIDARG on
+    every texture). Unity only takes that path if `GetProcAddress(mfplat,
+    "MFCreateDXGIDeviceManager")` succeeds (globals checked in source setup and when
+    building its D3D frame queue); otherwise it reads frames into system memory and
+    uploads them itself. `scripts/patch_unity_video.py` (run by 40 on every
+    `games/<id>/<ver>/UnityPlayer.dll`, `--revert`) renames that one string to
+    `RGMNoDXGIDeviceManager` (same length; refuses a DLL that imports mf* statically).
+  - `First video frame not zero: 2 (0.666667s)`: Unity turns each sample time into a
+    frame number and drops any frame that isn't the one it asked for. Wine's default MP4
+    reader (winegstreamer, qtdemux) ignores the edit list of B-frame MP4s, so frames start
+    at 0.667 s (shot video, 3 fps) or 0.05 s (swing video, 40 fps). Wine's newer reader
+    (mfsrcsnk + winedmo, using GStreamer.framework's FFmpeg 7.1) gets 0. 46 sets
+    `HKCU\Software\Wine\MediaFoundation\DisableGstByteStreamHandler=1`.
+  Verified offline with a program that reads like Unity (async callback, its reader
+  attributes, no DXGI manager, its stride/orientation logic): both real videos, all
+  frames, times from 0, right side up, for NV12/RGB32/ARGB32. Not yet seen in the Range.
+  Known: on the D3D path the new reader sometimes lost the last 3 frames (decoder drain
+  race); never on the system-memory path.
 - **Fix 9 — display layout after a monitor change (10/28/2026):** win32u never
   re-points its per-source registry links (`...\Control\Video\{gpu}\0000` →
   `Sources\<id>`) within a session (`REG_OPTION_OPEN_LINK` is ignored on create). So

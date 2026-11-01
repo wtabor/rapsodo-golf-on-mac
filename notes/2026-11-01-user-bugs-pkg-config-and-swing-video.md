@@ -62,3 +62,83 @@ A user's install stopped in `30-build-libzmq.sh` (screenshot: CMake error from
   cleanly; Studios reached Courses in 38 s; the app quit with no false crash.
 - **Not verified yet:** the swing video in the Range itself (needs the monitor and a
   shot).
+
+## 3. Live test: swing video still blank ("video is blank")
+With GStreamer installed and the monitor connected, real shots in the Range: the
+Shot/Impact panel showed a pause button and 00:00 / 00:10 with no picture (playing, but
+the clock never moved).
+
+### First, wrong, fix: mfplat bind flags (dropped)
+- Player.log's first line was `WindowsVideoMedia error 0x80070057 while reading`. A test
+  program reading NV12 into D3D11 textures (DXGI device manager) got textures with bind
+  flags 0, and `CreateShaderResourceView` on them returned the same 0x80070057. Wine's
+  reader never passes `MF_SOURCE_READER_D3D11_BIND_FLAGS` to its output allocator
+  (`mfreadwrite/reader.c`, `source_reader_create_sample_allocator_attributes`), and
+  `InitializeSampleAllocatorEx` gives non-BGRA textures bind 0.
+- A one-byte mfplat.dll patch (`patch_wine_mfplat.py`) made those textures shader-readable.
+  The owner hit three more shots: still blank. The full Player.log entry, which the first
+  grep had cut off, said where the error really came from (next section). Every one of
+  the 1408 errors in the log from before that patch has the same context, so the patch
+  never addressed it. Removed; mfplat.dll is back to stock.
+
+### Real causes
+- The full entry: `Context: Failed getting shared handle from IDXGIResource`, `Error
+  details: Invalid parameter.`, repeated for every frame (3719 times in 20 minutes).
+  UnityPlayer.dll (2022.3, disassembled): with the D3D11 renderer (`renderer == 2` sets
+  the flag that picks it), WindowsVideoMedia decodes on its own D3D11 device, then for
+  each frame calls `IDXGIResource::GetSharedHandle` and `OpenSharedResource` on the render
+  device. A null handle is also an error.
+- DXVK-macOS can't share textures: a test creating `MISC_SHARED` / `SHARED_KEYEDMUTEX`
+  textures logs `Failed to create shared resource: VK_KHR_EXTERNAL_MEMORY_WIN32 not
+  supported`, and `GetSharedHandle` returns 0x80070057 for every texture. So that path
+  can't work here, whatever Media Foundation does.
+- Unity only uses that path when `GetProcAddress(mfplat, "MFCreateDXGIDeviceManager")`
+  and `"MFCreateVideoSampleAllocatorEx"` both succeed. It checks the stored pointers when
+  setting up the source reader (no DXGI manager otherwise), when building its D3D frame
+  queue (none otherwise, so the system-memory frame path runs), and in two optional D3D
+  extras that are simply skipped. The system-memory path: `ConvertToContiguousBuffer`,
+  `IMF2DBuffer::Lock2D` or `Lock`, stride from `MF_MT_DEFAULT_STRIDE` or
+  `MFGetStrideForBitmapInfoHeader`, then Unity uploads the pixels itself.
+- Second cause, in the same log: `First video frame not zero: 2 (0.666667s). Result may
+  be out of sync.` (shot video, 3 fps) and `... 2 (0.050000s)` (swing video, 40 fps).
+  Unity turns each sample time into a frame number (`time * fps + 0.5`) and drops the
+  queued frame if it isn't the one it wants, so with every number off by two nothing is
+  ever shown and the clock stays at 0. Both MP4s have B-frames and an edit list
+  (`media time 8192` = two frames). Wine's default MP4 reader (winegstreamer, decodebin)
+  returns already-decoded frames stamped with qtdemux's raw times, 0.667 s first.
+  GStreamer's own FFmpeg (libavformat 61) applies the edit list (first pts 0, dts
+  -0.667 s), and Wine's newer reader (mfsrcsnk + winedmo, which links those FFmpeg
+  libraries) passes that through: first frame at 0, then 0.333, ... Selected by
+  `HKCU\Software\Wine\MediaFoundation\DisableGstByteStreamHandler=1`.
+
+### Fix
+- `scripts/patch_unity_video.py`, run by 40 on every `games/<id>/<ver>/UnityPlayer.dll`:
+  renames the one `MFCreateDXGIDeviceManager` string to `RGMNoDXGIDeviceManager` (same
+  length), so the lookup fails. Refuses a DLL where the name isn't there exactly once or
+  that imports Media Foundation statically (none of the three games do). Keeps `.orig`,
+  replaces by rename (a running game keeps its mapped copy), `--revert`. On copies of
+  both Unity builds (Range/Target Range, Studios): 25 bytes differ, re-run says "already
+  patched", revert is byte-identical.
+- `scripts/46-install-gstreamer.sh` sets the registry value (the new reader needs
+  GStreamer.framework's FFmpeg libraries anyway).
+- Kept from before: `launcher.c` sets
+  `GST_PLUGIN_FEATURE_RANK=vtdec:NONE,vtdec_hw:NONE,avfassetsrc:NONE`. Wine's H.264
+  decoder runs on GStreamer, whose VideoToolbox plugins link a second MoltenVK ("Class
+  MVKBlockObserver is implemented in both"; seen when `vtdechw` picked the stream).
+
+### Verified offline (11/01/2026, stock mfplat)
+A MinGW program that reads the way Unity does (async `IMFSourceReaderCallback`,
+DISABLE_DXVA=0, HARDWARE_TRANSFORMS=1, ADVANCED_VIDEO_PROCESSING=1, D3D11 bind flags 8,
+XVP_DISABLE_FRC=1, no DXGI manager, Unity's stride lookup):
+- Shot video from shot #3: 30/30 frames, times 0, 0.333 s, ... for NV12, RGB32 and ARGB32.
+- Swing video (`swingVideo_avc.mp4`, H.264 1536x1440, 40 fps): 249/249, first at 0.
+- Orientation: NV12 has stride +480 and is top-down; RGB32/ARGB32 have no
+  `MF_MT_DEFAULT_STRIDE`, so Unity falls back to `MFGetStrideForBitmapInfoHeader` =
+  -1920 (bottom-up), and Wine's RGB32 buffer is stored bottom-up (its first rows match
+  the bottom of the picture by ffmpeg's luma). So the picture comes out right side up.
+- With a DXGI manager (the path Unity no longer takes) the new reader sometimes lost the
+  last 3 frames of the 3 fps video (decoder drain race, gone with tracing on). Never on
+  the system-memory path.
+
+**Not verified yet:** the video playing in the Range itself (needs a shot, or clicking
+an earlier shot after restarting the game with the patched UnityPlayer.dll).

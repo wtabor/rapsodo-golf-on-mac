@@ -39,6 +39,16 @@ warm_up() {
     echo "warning: couldn't prepare GStreamer's plugin list; the first video may take a minute" >&2
 }
 
+# Wine has two MP4 readers. The default (GStreamer's demuxer) ignores an MP4's edit
+# list, so a video with B-frames starts at frame 2 (0.67 s into the Range's 3 fps shot
+# video), and Unity drops every frame whose number isn't the one it asked for. Wine's
+# newer reader (winedmo, built on the FFmpeg libraries inside GStreamer.framework)
+# gets the times right.
+WINEPREFIX="$RGM_PREFIX" WINEDEBUG=-all "$RGM_WINE_BIN/wine" reg add \
+  'HKCU\Software\Wine\MediaFoundation' /v DisableGstByteStreamHandler /t REG_DWORD /d 1 /f >/dev/null &&
+  echo "Wine's FFmpeg-based MP4 reader enabled" ||
+  echo "warning: couldn't switch Wine's MP4 reader; game videos may stay blank" >&2
+
 v="$(installed_version)"
 if [ -n "$v" ] && [ "$v" -ge "$NEED" ]; then
   echo "GStreamer already installed ($FRAMEWORK, version $v)"
