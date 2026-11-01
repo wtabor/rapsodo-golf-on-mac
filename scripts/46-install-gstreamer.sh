@@ -28,9 +28,21 @@ installed_version() {
     awk 'NR == 2 { for (i = 1; i < NF; i++) if ($i == "current") { split($(i + 2), v, "."); print v[1] } }'
 }
 
+# GStreamer scans all its plugins the first time it's used and caches the list in
+# ~/.cache/gstreamer-1.0/registry.x86_64.bin. Under Rosetta that first scan took
+# about a minute, which would land on the first swing video in a game (the game may
+# give up waiting). Do it here instead, as the user, in Intel mode like Wine.
+warm_up() {
+  [ -f "$HOME/.cache/gstreamer-1.0/registry.x86_64.bin" ] && return 0
+  echo "Preparing GStreamer's plugin list (once; can take a minute)..."
+  arch -x86_64 "$FRAMEWORK/Commands/gst-inspect-1.0" >/dev/null 2>&1 ||
+    echo "warning: couldn't prepare GStreamer's plugin list; the first video may take a minute" >&2
+}
+
 v="$(installed_version)"
 if [ -n "$v" ] && [ "$v" -ge "$NEED" ]; then
   echo "GStreamer already installed ($FRAMEWORK, version $v)"
+  warm_up
   exit 0
 fi
 
@@ -55,3 +67,4 @@ if [ -z "$v" ] || [ "$v" -lt "$NEED" ]; then
 fi
 rm -f "$dir/$GST_PKG"
 echo "GStreamer $GST_VERSION installed ($FRAMEWORK, version $v)"
+warm_up

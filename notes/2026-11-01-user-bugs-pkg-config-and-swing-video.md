@@ -47,6 +47,18 @@ A user's install stopped in `30-build-libzmq.sh` (screenshot: CMake error from
   `sudo installer`. Skips when an x86_64 libgstreamer at >= 2802 is already there.
   Sandbox-tested (stub sudo/installer/curl): skip when present, replace an arm64-only
   copy, install when missing, no-op on the next run.
-- **Not verified yet:** the decode test with GStreamer present (blocked here: it would
-  run the downloaded GStreamer code; needs the owner's OK or the system install), and
-  the swing video in the Range itself (needs the monitor and a shot).
+- Verified on the owner's Mac (11/01/2026, after his OK; 46 run from a terminal tab for
+  his password): GStreamer 1.28.8 installed (x86_64+arm64, compatibility 2809, 257
+  plugins). The same test now gives `MFCreateSourceReaderFromURL` = S_OK,
+  `SetCurrentMediaType(RGB32)` = S_OK, **30/30 frames** of the user's real
+  `ShotVideo.mp4`.
+- The first use took 62 s: GStreamer scans every plugin once (under Rosetta) and caches
+  the list in `~/.cache/gstreamer-1.0/registry.x86_64.bin`; later decodes take 1–2 s. That
+  minute would land on the first swing video, so 46 now builds the list right after
+  installing (`arch -x86_64 …/Commands/gst-inspect-1.0`), and also when GStreamer is
+  already there but the list is missing (2.5 s here, with Rosetta's cache warm).
+- Smoke test with GStreamer present, through play.sh: Driving Range up for 60 s, no
+  video/Media Foundation errors (only the known localization exceptions), closed
+  cleanly; Studios reached Courses in 38 s; the app quit with no false crash.
+- **Not verified yet:** the swing video in the Range itself (needs the monitor and a
+  shot).
