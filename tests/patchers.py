@@ -233,6 +233,24 @@ def asar_installed(a, work, script, script_name, lines):
         f.unlink()
 
 
+# ---------------------------------------------------------------- no path given
+def no_argument(a, work):
+    """Run with no path (or only --revert): usage and exit 2, nothing written. They used to
+    take sys.argv[-1], which is then the script itself, and patch their own source."""
+    c = Check("patchers refuse to run without a path")
+    for name in ("patch_devicemanager.py", "patch_alignment_ffmpeg.py", "patch_app_polls.py",
+                 "patch_app_window.py", "patch_unity_video.py"):
+        src = a.scripts / name
+        if not src.exists():
+            continue
+        copy = clone(src, work / "noarg" / name)
+        before = sha(copy)
+        for args in ((), ("--revert",)) if name != "patch_devicemanager.py" else ((),):
+            rc, _ = run(copy, *args)
+            c.expect(rc == 2 and sha(copy) == before, f"{name} {' '.join(args) or '(no args)'}: rc {rc}")
+    c.done()
+
+
 # ---------------------------------------------------------------- Unity video
 def test_unity_video(a, work):
     name = "patch_unity_video.py"
@@ -309,7 +327,9 @@ def main():
     test_devicemanager(a, a.work)
     asar_roundtrip(a, a.work, "patch_alignment_ffmpeg.py", 1)
     asar_roundtrip(a, a.work, "patch_app_polls.py", 2)
+    asar_roundtrip(a, a.work, "patch_app_window.py", 3)
     test_unity_video(a, a.work)
+    no_argument(a, a.work)
     return 0
 
 
