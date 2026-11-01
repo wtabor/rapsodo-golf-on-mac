@@ -152,17 +152,38 @@ failure. Pushes to other branches and branch deletions aren't tested.
   patterns on a synthetic log. Tiers 3 and 4 themselves were **not run**: another
   session was live-testing the app.
 
-## Still to verify (needs a live run)
-- `scripts/test.sh 3` with the app closed: app start through the test launcher,
-  `window.close()` actually quitting Electron under Wine (else the WM_CLOSE fallback),
-  each game starting from `electronAPI.runGame`, closing on WM_CLOSE, "game closed" and
-  the device manager restart, no Wine process left after the quit. Time per game.
-- `scripts/test.sh 3 4` from iTerm with the monitor on: the alignment flow against the
-  real screen (the route, the button text, two `<video>` elements) and its teardown.
-- The SKIP path of the B-frame checks without `DisableGstByteStreamHandler` (not set up:
-  the prefix's registry is off limits during the live session).
+## Tier 3 live, and keeping it out of the way (11/01/2026, later)
+- First live run, as written: started the app and games full screen on the owner's
+  screen, maximized, and couldn't be minimized or hidden while it ran. The owner stopped
+  it. Before the stop: app up, page loaded, `findAllGames`, Target Range started, reached
+  its first scene and was force-closed (it ignores WM_CLOSE).
+- Now quiet by default (`RGM_TEST_SHOW=1` for the old behavior):
+  - `tests/wine/winctl.c` runs in Wine for the whole tier and minimizes, without
+    activating (`SW_SHOWMINNOACTIVE`), every visible top-level window of RapsodoGolf.exe
+    and the games' exes, 5 times a second (the app shows its window again after each
+    game). Stopped only after the app has quit; stopping it when the quit started left
+    the app window visible for ~4.5 s.
+  - `tests/app/focusguard.swift` (built with swiftc) hides every regular app of this
+    Wine install, 5 times a second, so nothing keeps the keyboard. `hide()` returns before
+    the app is hidden, so it can't report success; checked separately: isHidden went
+    false -> true.
+  - Games get `-screen-fullscreen 0 -screen-width 640 -screen-height 360`.
+  - Unity saves the window size in HKCU\Software\<company>\<product> when the game
+    quits, so each game's key is exported before and deleted + re-imported after it is
+    closed, on every path (a start that looked failed may have started it), and from the
+    cleanup trap on Ctrl-C. The first quiet run returned early on a failure, skipped the
+    restore, and left Driving Range with a saved 640x360 window; repaired by hand the way
+    45 repairs a bad size (Resolution and Window Width/Height deleted, Use Native = 1).
+  - That failure ("no 'run game' line in the app log" while `runGame` had returned true)
+    didn't repeat. `runGame` resolves true only after the app logs "run game", so the
+    log check was dropped; true now counts as started.
+- Results, all five games, tiers 1-3: 29 + 13 + 9 passed, 277 s. A sampler (CGWindowList +
+  NSWorkspace, every 0.5 s) saw a Wine window on screen in 25 of 541 samples (~1-1.5 s
+  at each game start and close: windows caught mid minimize animation) and Wine as the
+  frontmost app in none. Every game's settings key was identical before and after.
+- Still not run: tier 4 (monitor, from iTerm).
 
-## Bug found in existing scripts (not fixed here)
+## Bug found in existing scripts (fixed: 340a7cc, every patcher now needs exactly one path)
 - `patch_app_polls.py` with no file argument patches **its own source**: it takes
   `sys.argv[-1]`, which is then the script itself, and the Wi-Fi constants occur once
   each in it, so it rewrites `WIFI_ORIG` to `...36e5,` (checked on a copy). After that the

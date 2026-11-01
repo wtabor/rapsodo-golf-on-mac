@@ -11,6 +11,7 @@ win_test_flags() {
     mfsrc) echo "-municode -lmfplat -lmfuuid -lole32" ;;
     d3d11check) echo "-ld3d11 -ldxgi -luuid" ;;
     udpioctl) echo "-lws2_32" ;;
+    winctl) echo "-municode" ;;
     *) echo "" ;;
   esac
 }

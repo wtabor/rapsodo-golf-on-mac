@@ -15,6 +15,14 @@ T3_PORT="${RGM_TEST_PORT:-9222}"
 T3_DIR="$WORK/t3"
 T3_LOG="$T3_DIR/app.log"
 T3_PID=""
+# Out of the way by default: windows of the test copy of the app and of its games are
+# minimized (inside Wine) and hidden (macOS) as they appear, and games start in a
+# 640x360 window. Each game's saved settings (its HKCU\Software\<company>\<product> key,
+# where Unity keeps the window size) are put back afterwards. RGM_TEST_SHOW=1 shows
+# everything as a user would see it.
+T3_SHOW="${RGM_TEST_SHOW:-0}"
+T3_GAME_WINDOW="-screen-fullscreen 0 -screen-width 640 -screen-height 360"
+T3_GUARD_PIDS=""
 # Unity crash / startup failure markers in Player.log.
 T3_CRASH='Crash!!!|Failed to initialize player|Fatal error|Failed to create D3D11|Unity Player has crashed|DirectX 11 not supported'
 
@@ -36,9 +44,40 @@ log_after() { tail -n +"$(($1 + 1))" "$T3_LOG" 2>/dev/null | grep -q -E "$2"; }
 log_lines() { if [ -f "$T3_LOG" ]; then wc -l <"$T3_LOG" | tr -d ' '; else echo 0; fi; }
 nothing_running() { [ -z "$(wine_pids)" ]; }
 
+# Start/stop the two watchers that keep the test's windows out of sight.
+t3_guard_start() {
+  [ "$T3_SHOW" != 1 ] || return 0
+  local exes="RapsodoGolf.exe" exe
+  for exe in "$GAMES"/*/*/*.exe; do
+    [ -d "${exe%.exe}_Data" ] && exes="$exes $(basename "$exe")"
+  done
+  if "$MINGW" -O2 -Wall -municode -o "$T3_DIR/winctl.exe" "$TESTS/wine/winctl.c" >>"$T3_DIR/build.log" 2>&1; then
+    # shellcheck disable=SC2086  # one argument per program
+    (cd "$T3_DIR" && exec env WINEPREFIX="$RGM_PREFIX" WINEDEBUG=-all "$RGM_WINE_BIN/wine" winctl.exe $exes) \
+      >"$T3_DIR/winctl.log" 2>&1 &
+    T3_GUARD_PIDS="$!"
+  fi
+  if swiftc -O -o "$T3_DIR/focusguard" "$TESTS/app/focusguard.swift" >>"$T3_DIR/build.log" 2>&1; then
+    "$T3_DIR/focusguard" "$(cd "$RGM_WINE_BIN/.." && pwd -P)" >"$T3_DIR/focusguard.log" 2>&1 &
+    T3_GUARD_PIDS="$T3_GUARD_PIDS $!"
+  fi
+}
+t3_guard_stop() {
+  local pid
+  for pid in $T3_GUARD_PIDS; do kill "$pid" 2>/dev/null || true; done
+  for pid in $T3_GUARD_PIDS; do wait "$pid" 2>/dev/null || true; done
+  T3_GUARD_PIDS=""
+}
+
 # Close the app this tier started, however the run ends (Ctrl-C included). Only Wine
 # processes of this install can be running then (checked before starting).
 t3_cleanup() {
+  t3_guard_stop
+  if [ -n "$T3_SAVED_KEY" ]; then
+    echo "putting back the saved settings of $T3_SAVED_KEY..." >&2
+    WINEPREFIX="$RGM_PREFIX" "$RGM_WINE_BIN/wineserver" -k 2>/dev/null || true
+    t3_restore_settings || echo "couldn't: they're in $T3_SAVED_FILE (wine reg import)" >&2
+  fi
   app_alive || return 0
   echo "closing the test copy of the app..." >&2
   WINEPREFIX="$RGM_PREFIX" "$RGM_WINE_BIN/wineserver" -k 2>/dev/null || true
@@ -70,9 +109,10 @@ t3_start() {
     show "$T3_DIR/build.log"
     return 1
   fi
+  TIER3_CLEANUP=t3_cleanup
+  t3_guard_start
   RGM_REMOTE_DEBUGGING_PORT="$T3_PORT" "$T3_DIR/launch" &
   T3_PID=$!
-  TIER3_CLEANUP=t3_cleanup
   local s=$SECONDS
   # Like play.sh: the device manager's start line, or its failure.
   wait_for 150 sh -c 'grep -q -E "DEBUG: start device manager|device manager server start failed" "$1" || ! kill -0 "$2" 2>/dev/null' _ "$T3_LOG" "$T3_PID"
@@ -152,10 +192,51 @@ t3_games() {
 
 game_pid() { pgrep -f "SuperApp.games.*$1" | head -1; }
 
+# Put back a game's saved settings (its HKCU\Software\<company>\<product> key) as they
+# were before the test: Unity saves the window size there when it quits, and the test's
+# 640x360 window must not become the next real game's. Called after the game is closed,
+# and from t3_cleanup if the run is cut short.
+T3_SAVED_KEY="" T3_SAVED_FILE="" T3_SAVED_HAD=0
+t3_save_settings() {
+  T3_SAVED_KEY=$1 T3_SAVED_FILE=$2 T3_SAVED_HAD=0
+  rm -f "$T3_SAVED_FILE"
+  WINEPREFIX="$RGM_PREFIX" WINEDEBUG=-all with_timeout 30 "$RGM_WINE_BIN/wine" reg export "$T3_SAVED_KEY" \
+    "$(winpath "$T3_SAVED_FILE")" /y >/dev/null 2>&1 && [ -s "$T3_SAVED_FILE" ] && T3_SAVED_HAD=1
+  return 0
+}
+t3_restore_settings() {
+  [ -n "$T3_SAVED_KEY" ] || return 0
+  local key=$T3_SAVED_KEY rc=0
+  T3_SAVED_KEY=""
+  WINEPREFIX="$RGM_PREFIX" WINEDEBUG=-all with_timeout 30 "$RGM_WINE_BIN/wine" reg delete "$key" /f >/dev/null 2>&1 || true
+  if [ "$T3_SAVED_HAD" = 1 ]; then
+    WINEPREFIX="$RGM_PREFIX" WINEDEBUG=-all with_timeout 30 "$RGM_WINE_BIN/wine" reg import "$(winpath "$T3_SAVED_FILE")" \
+      >/dev/null 2>&1 || rc=1
+  fi
+  return $rc
+}
+
+# Close a game like a user would (WM_CLOSE), force only if it ignores that. Prints how.
+t3_close_game() {
+  local exe=$1
+  [ -n "$(game_pid "$exe")" ] || { echo "exited on its own"; return 0; }
+  WINEPREFIX="$RGM_PREFIX" WINEDEBUG=-all with_timeout 20 "$RGM_WINE_BIN/wine" taskkill /im "$exe" >/dev/null 2>&1
+  if wait_for 30 sh -c '! pgrep -f "SuperApp.games.*$1" >/dev/null' _ "$exe"; then
+    echo "closed"
+    return 0
+  fi
+  WINEPREFIX="$RGM_PREFIX" WINEDEBUG=-all with_timeout 20 "$RGM_WINE_BIN/wine" taskkill /f /im "$exe" >/dev/null 2>&1
+  if wait_for 15 sh -c '! pgrep -f "SuperApp.games.*$1" >/dev/null' _ "$exe"; then
+    echo "force-closed (ignored WM_CLOSE)"
+    return 0
+  fi
+  echo "still running after taskkill /f"
+  return 1
+}
+
 # t3_game SLUG VERSION WINDIR EXE ARGS
 t3_game() {
-  local slug=$1 ver=$2 windir=$3 exe=$4 args=$5 dir info company product plog start mark s problems=""
-  local how="exited on its own"
+  local slug=$1 ver=$2 windir=$3 exe=$4 args=$5 dir info company product plog start mark s problems="" how
   local name="game $slug $ver: starts, reaches its first scene, closes"
   dir="$(unixpath "$windir")"
   info="$dir/${exe%.exe}_Data/app.info"
@@ -163,23 +244,24 @@ t3_game() {
   company="$(sed -n 1p "$info" | tr -d '\r')"
   product="$(sed -n 2p "$info" | tr -d '\r')"
   plog="$RGM_PREFIX/drive_c/users/$(id -un)/AppData/LocalLow/$company/$product/Player.log"
+  if [ "$T3_SHOW" != 1 ]; then
+    args="$args $T3_GAME_WINDOW"
+    t3_save_settings "HKCU\\Software\\$company\\$product" "$T3_DIR/$slug.reg"
+  fi
   start=$(date +%s)
   mark=$(log_lines)
   s=$SECONDS
-  local out
+  # runGame resolves true once the app has started the game (after its "run game" line).
+  local out started=0
   out="$(cdp call '(d, e, a) => window.electronAPI.runGame(d, e, a)' "$windir" "$exe" "$args" 2>&1)" || true
-  if [ "$out" != true ]; then
-    fail "$name" "runGame returned $out"
-    return
-  fi
-  if ! wait_for 30 log_after "$mark" "DEBUG: run game $exe"; then
-    fail "$name" "no 'run game' line in the app log"
-    tail -n +"$((mark + 1))" "$T3_LOG" | tail -n 20 | indent
-    return
+  if [ "$out" = true ]; then
+    started=1
+  else
+    problems="$problems; runGame returned $out"
   fi
   # Player.log rewritten by this run, D3D11 device up (DXVK), first scene loaded.
   local ready=0 seen=0
-  while [ $((SECONDS - s)) -lt 180 ]; do
+  while [ "$started" = 1 ] && [ $((SECONDS - s)) -lt 180 ]; do
     if [ -f "$plog" ] && [ "$(stat -f %m "$plog")" -ge "$start" ]; then
       grep -q -E "$T3_CRASH" "$plog" && break
       if grep -q 'Version:  Direct3D 11' "$plog" && grep -q '^UnloadTime:' "$plog"; then ready=1; break; fi
@@ -200,26 +282,21 @@ t3_game() {
     sleep 10 # stays up
     [ -n "$(game_pid "$exe")" ] || problems="$problems; exited by itself within 10 s of its first scene"
     ! grep -q -E "$T3_CRASH" "$plog" || problems="$problems; crash marker in Player.log"
-  else
+  elif [ "$started" = 1 ]; then
     problems="$problems; no D3D11 + first scene in Player.log after ${up}s"
     [ -n "$(game_pid "$exe")" ] || problems="$problems; game process gone"
   fi
-  # Close it like a user would (WM_CLOSE), force only if it ignores that.
-  if [ -n "$(game_pid "$exe")" ]; then
-    WINEPREFIX="$RGM_PREFIX" WINEDEBUG=-all with_timeout 20 "$RGM_WINE_BIN/wine" taskkill /im "$exe" >/dev/null 2>&1
-    if wait_for 30 sh -c '! pgrep -f "SuperApp.games.*$1" >/dev/null' _ "$exe"; then
-      how="closed"
-    else
-      WINEPREFIX="$RGM_PREFIX" WINEDEBUG=-all with_timeout 20 "$RGM_WINE_BIN/wine" taskkill /f /im "$exe" >/dev/null 2>&1
-      wait_for 15 sh -c '! pgrep -f "SuperApp.games.*$1" >/dev/null' _ "$exe" && how="force-closed (ignored WM_CLOSE)" ||
-        problems="$problems; still running after taskkill /f"
-    fi
-  fi
+  # Closed on every path (a start that looked failed may still have started it), then
+  # its saved settings put back.
+  how="$(t3_close_game "$exe")" || problems="$problems; $how"
+  t3_restore_settings || problems="$problems; couldn't restore HKCU\\Software\\$company\\$product (saved in $T3_DIR/$slug.reg)"
   # The app notices, brings itself back and restarts its device manager.
-  if ! wait_for 60 log_after "$mark" "DEBUG: game closed"; then
-    problems="$problems; app never logged 'game closed'"
-  elif ! wait_for 60 sh -c 'tail -n +"$(($2 + 1))" "$1" | sed -n "/DEBUG: game closed/,\$p" | grep -q "DEBUG: start device manager"' _ "$T3_LOG" "$mark"; then
-    problems="$problems; device manager not restarted after the game"
+  if [ "$started" = 1 ]; then
+    if ! wait_for 60 log_after "$mark" "DEBUG: game closed"; then
+      problems="$problems; app never logged 'game closed'"
+    elif ! wait_for 60 sh -c 'tail -n +"$(($2 + 1))" "$1" | sed -n "/DEBUG: game closed/,\$p" | grep -q "DEBUG: start device manager"' _ "$T3_LOG" "$mark"; then
+      problems="$problems; device manager not restarted after the game"
+    fi
   fi
   app_alive && cdp eval '1 + 1' >/dev/null 2>&1 || problems="$problems; app not responding afterwards"
   if [ -z "$problems" ]; then
@@ -247,6 +324,7 @@ t3_quit() {
   rc=0
   wait "$T3_PID" || rc=$?
   T3_PID=""
+  t3_guard_stop
   # After a quit every Wine process of this install exits (wineserver lingers ~3 s).
   if ! wait_for 30 nothing_running; then
     local left

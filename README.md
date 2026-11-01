@@ -273,7 +273,7 @@ is missing says SKIP, not FAIL:
 |---|---|---|---|
 | 1 | shellcheck, Python syntax (yours and macOS's 3.9), each binary patcher on copies of your installed files (patch, re-run, revert), `update.sh` in a sandbox, C sources compile, no binaries or personal data in git | nothing; patcher checks use your install | ~20 s |
 | 2 | Small Windows programs under your Wine: D3D11 through DXVK, the patched libzmq (with CURVE), MediaMTX's UDP listeners, the location stub, Wine's display layout, Media Foundation reading synthetic B-frame videos the way the games do | an install; runs next to an open app | ~20–30 s |
-| 3 | Starts Rapsodo's app with a DevTools port, checks the page, starts and closes each downloaded game, quits the app | the app closed first; puts game windows on screen | minutes |
+| 3 | Starts Rapsodo's app with a DevTools port, checks the page, starts and closes each downloaded game, quits the app. Stays out of your way: its windows are minimized and hidden as they appear (a second-long flash at most, never taking the keyboard), games run in a 640×360 window, and each game's saved settings are put back afterwards. `RGM_TEST_SHOW=1` shows everything instead | the app closed first | ~4 min for 5 games |
 | 4 | Finds, connects to and signs in to the monitor, alignment camera views; prints a checklist for shots | MLM2PRO on USB; run from iTerm | ~1 min |
 
 ```bash
