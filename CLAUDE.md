@@ -262,8 +262,10 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   `MdnsScanner`, `V3ScanTCP`, `DEALER`, `Connected to the device`, `APIAuthenticate`,
   `request-cert`.
 - USB link log: `~/Library/Logs/RapsodoGolf-usblink.log`.
-- Drive the UI without clicking: launch with `--remote-debugging-port=9222` and use the
-  Chrome DevTools Protocol; the renderer exposes
+- Drive the UI without clicking: launch with `--remote-debugging-port=9222` (a launcher
+  built from the current `launcher.c` adds it when `RGM_REMOTE_DEBUGGING_PORT=9222` is
+  set, as tier 3 of `scripts/test.sh` does; `tests/app/cdp.mjs` is a small client) and
+  use the Chrome DevTools Protocol; the renderer exposes
   `window.deviceManager.client.rdc.<Service>.<method>` (e.g.
   `DiscoveryAndConnectionService.scanTcpDevices(6)`).
 - Wine socket tracing: `WINEDEBUG=+winsock`. Thread backtraces:
@@ -276,5 +278,10 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   (auto-update). Push only changes that were tested; keep work in progress on a branch.
 - Never commit Rapsodo binaries, installers, or patched copies of them.
 - Keep `scripts/` idempotent; re-run them rather than hand-editing the prefix.
-- Lint shell with `shellcheck -x -e SC1091 scripts/*.sh` before committing.
+- Lint shell with `shellcheck -x -e SC1091 scripts/*.sh tests/*.sh` before committing.
+- Run `scripts/test.sh` (tiers 1–2, under a minute) before anything goes to main; tiers
+  3–4 (`scripts/test.sh 3 4`, app closed, monitor on, from iTerm) for changes to the
+  launch path, games or monitor link. `scripts/install-test-hook.sh` makes `git push` to
+  main run tiers 1–2 on the pushed commit (`RGM_SKIP_TESTS=1` to skip once).
+  `notes/2026-11-01-regression-tests.md`.
 - Add a dated `notes/YYYY-MM-DD-*.md` for any meaningful experiment, including failures.

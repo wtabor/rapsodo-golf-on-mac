@@ -263,6 +263,28 @@ python3 ~/rapsodo-golf-on-mac/scripts/rapsodo-compat-check.py
 It doesn't run Wine, the games or the monitor, and game updates (which come through
 the signed-in app) aren't covered.
 
+### Testing
+
+Every push to `main` reaches every user the next time they open the app, so test
+first. [`scripts/test.sh`](scripts/test.sh) runs in tiers; a check whose prerequisite
+is missing says SKIP, not FAIL:
+
+| Tier | Checks | Needs | Time |
+|---|---|---|---|
+| 1 | shellcheck, Python syntax (yours and macOS's 3.9), each binary patcher on copies of your installed files (patch, re-run, revert), `update.sh` in a sandbox, C sources compile, no binaries or personal data in git | nothing; patcher checks use your install | ~20 s |
+| 2 | Small Windows programs under your Wine: D3D11 through DXVK, the patched libzmq (with CURVE), MediaMTX's UDP listeners, the location stub, Wine's display layout, Media Foundation reading synthetic B-frame videos the way the games do | an install; runs next to an open app | ~20–30 s |
+| 3 | Starts Rapsodo's app with a DevTools port, checks the page, starts and closes each downloaded game, quits the app | the app closed first; puts game windows on screen | minutes |
+| 4 | Finds, connects to and signs in to the monitor, alignment camera views; prints a checklist for shots | MLM2PRO on USB; run from iTerm | ~1 min |
+
+```bash
+scripts/test.sh              # tiers 1 and 2
+scripts/test.sh 3 4          # the app, the games and the monitor (from iTerm)
+scripts/install-test-hook.sh # optional: `git push` to main runs tiers 1 and 2 first
+```
+
+The hook tests the exact commit being pushed and blocks the push if anything fails.
+To push anyway once: `RGM_SKIP_TESTS=1 git push`.
+
 ### Built on
 
 <div align="center">

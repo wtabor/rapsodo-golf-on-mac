@@ -11,6 +11,7 @@
 #include <spawn.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -51,7 +52,16 @@ int main(void) {
     }
     // GPU off: Chromium's GPU path doesn't render under Wine on macOS.
     char *argv[] = {RGM_WINE, "RapsodoGolf.exe", "--no-sandbox", "--disable-gpu",
-                    "--disable-gpu-compositing", "--in-process-gpu", NULL};
+                    "--disable-gpu-compositing", "--in-process-gpu", NULL, NULL};
+    // Tests only (scripts/test.sh, tier 3): RGM_REMOTE_DEBUGGING_PORT=<port> adds
+    // Chromium's DevTools port on 127.0.0.1 so the suite can drive the app. Unset in
+    // normal use (play.sh never sets it), so the app starts exactly as before.
+    char debug_arg[40];
+    const char *port = getenv("RGM_REMOTE_DEBUGGING_PORT");
+    if (port && *port && strlen(port) <= 5 && strspn(port, "0123456789") == strlen(port)) {
+        snprintf(debug_arg, sizeof debug_arg, "--remote-debugging-port=%s", port);
+        argv[6] = debug_arg;
+    }
     // Spawn (don't exec): this signed launcher must stay alive as the
     // "responsible" process. If it exec'd into the unsigned wine binary, macOS
     // would attribute Wine's network traffic to an app with no identity and
