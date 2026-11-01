@@ -21,6 +21,9 @@ CONNRESET = bytes.fromhex("bb0c000098")  # mov $0x9800000c,%ebx
 
 
 def main() -> int:
+    if len(sys.argv) != 2:
+        print(__doc__.strip().splitlines()[-1], file=sys.stderr)
+        return 2
     exe = Path(sys.argv[1])
     data = bytearray(exe.read_bytes())
     if data.count(NETRESET) == 0 and data.count(CONNRESET) == 2:

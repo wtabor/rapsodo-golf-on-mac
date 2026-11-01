@@ -128,7 +128,7 @@ def main() -> int:
     revert = args[:1] == ["--revert"]
     if revert:
         args = args[1:]
-    if len(args) != 1 or not args[0].endswith(".asar"):
+    if len(args) != 1:
         print(__doc__.strip().splitlines()[-1], file=sys.stderr)
         return 2
     asar = Path(args[0])

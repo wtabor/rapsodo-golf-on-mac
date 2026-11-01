@@ -55,8 +55,15 @@ def imported_dlls(data: bytes) -> list[str]:
 
 
 def main() -> int:
-    revert = sys.argv[1:2] == ["--revert"]
-    dll = Path(sys.argv[-1])
+    args = sys.argv[1:]
+    revert = args[:1] == ["--revert"]
+    if revert:
+        args = args[1:]
+    if len(args) != 1:
+        # A missing path must not make sys.argv[-1] this script itself.
+        print(__doc__.strip().splitlines()[-1], file=sys.stderr)
+        return 2
+    dll = Path(args[0])
     data = dll.read_bytes()
     find, put = (PATCHED, ORIG) if revert else (ORIG, PATCHED)
     if data.count(put) == 1 and data.count(find) == 0:

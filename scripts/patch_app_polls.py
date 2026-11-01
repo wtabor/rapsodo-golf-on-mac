@@ -52,8 +52,15 @@ def game_check_sites(m) -> dict:
 
 
 def main() -> int:
-    revert = sys.argv[1:2] == ["--revert"]
-    asar = Path(sys.argv[-1])
+    args = sys.argv[1:]
+    revert = args[:1] == ["--revert"]
+    if revert:
+        args = args[1:]
+    if len(args) != 1:
+        # A missing path must not make sys.argv[-1] this script itself.
+        print(__doc__.strip().splitlines()[-1], file=sys.stderr)
+        return 2
+    asar = Path(args[0])
     rc = 0
     with open(asar, "r+b") as f, mmap.mmap(f.fileno(), 0) as m:
         # (name, offsets of the text to replace, offsets already replaced, replacement)
