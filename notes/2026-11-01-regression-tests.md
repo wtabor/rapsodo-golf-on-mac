@@ -181,7 +181,28 @@ failure. Pushes to other branches and branch deletions aren't tested.
   NSWorkspace, every 0.5 s) saw a Wine window on screen in 25 of 541 samples (~1-1.5 s
   at each game start and close: windows caught mid minimize animation) and Wine as the
   frontmost app in none. Every game's settings key was identical before and after.
-- Still not run: tier 4 (monitor, from iTerm).
+
+## Tier 4 live (11/04/2026, MLM2PRO on USB, from iTerm)
+First run with a real monitor. Discovery, connection and APIAuthenticate passed at once,
+so the launcher's naming library (`DYLD_INSERT_LIBRARIES`) doesn't cost the app Local
+Network access. The alignment checks failed three times, each time a bug in the test, not
+in the app (they had only run against a mock page):
+- "no Align Now button": the test compared `innerText` with "Align Now", but the button
+  has the `uppercase` class and innerText returns styled text. Now
+  `[data-testid=cal-footer-cta]`, compared case-insensitively.
+- "alignment camera streams start" failed while the log showed both streams online:
+  `log_after` piped tail into `grep -q`. grep stops at the first match, tail dies of
+  SIGPIPE, and scripts/test.sh's pipefail turns that into a failure. On this log: 0 of 20
+  matches found with `grep -q`, 20 of 20 with `grep >/dev/null`. Most likely also the
+  one-off "no 'run game' line" of the first quiet run.
+- "want 2 views": the screen shows one camera at a time, on tabs. Now Shot Vision, then
+  `[data-testid=camera-tab-impact]`.
+
+Final run: tier 3 (no games) 4 passed, 1 skipped; tier 4 6 passed in 48 s. Live views 22.4
+and 24.2 fps with the window minimized and hidden, so quiet mode doesn't throttle them.
+Teardown left no ffmpeg or MediaMTX, the app quit cleanly. That run printed `cdp: Promise
+was collected` for the Align Now step (the page changed under the pending call); the
+click had landed and the streams started, and the check goes by the app log.
 
 ## Bug found in existing scripts (fixed: 340a7cc, every patcher now needs exactly one path)
 - `patch_app_polls.py` with no file argument patches **its own source**: it takes

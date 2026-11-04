@@ -40,7 +40,9 @@ wait_for() {
 }
 app_alive() { [ -n "$T3_PID" ] && kill -0 "$T3_PID" 2>/dev/null; }
 # log_after LINE REGEX: REGEX appears in the app log after line LINE.
-log_after() { tail -n +"$(($1 + 1))" "$T3_LOG" 2>/dev/null | grep -q -E "$2"; }
+# Not `grep -q`: it stops at the first match, tail dies of SIGPIPE, and pipefail (set by
+# scripts/test.sh) then reports the match as a failure.
+log_after() { tail -n +"$(($1 + 1))" "$T3_LOG" 2>/dev/null | grep -E "$2" >/dev/null; }
 log_lines() { if [ -f "$T3_LOG" ]; then wc -l <"$T3_LOG" | tr -d ' '; else echo 0; fi; }
 nothing_running() { [ -z "$(wine_pids)" ]; }
 

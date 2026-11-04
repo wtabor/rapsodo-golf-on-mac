@@ -59,8 +59,9 @@ t4_alignment() {
     await router.push("/alignment");
     for (let i = 0; i < 20; i++) {
       await new Promise(r => setTimeout(r, 500));
-      const b = [...document.querySelectorAll("button")].find(b => b.innerText.trim() === "Align Now");
-      if (b) { b.click(); return "clicked Align Now"; }
+      // Its label is styled uppercase, and innerText returns the styled text.
+      const b = document.querySelector("[data-testid=cal-footer-cta]");
+      if (b && /^align now$/i.test(b.innerText.trim())) { b.click(); return "clicked Align Now"; }
     }
     return "no Align Now button (at " + router.currentRoute.value.path + ")";
   })()' 2>&1)" || true
@@ -84,13 +85,24 @@ t4_alignment() {
   fi
   if [ "$ok" = 1 ]; then
     # Both live views decode at a real frame rate (~18-20 fps; Fix 6 regressions show ~1 fps).
+    # The screen shows one camera at a time: Shot Vision, then the Impact Vision tab.
     sleep 5
     out="$(cdp eval '(async () => {
-      const count = () => [...document.querySelectorAll("video")].map(v => v.getVideoPlaybackQuality().totalVideoFrames);
-      const a = count();
-      await new Promise(r => setTimeout(r, 5000));
-      const b = count();
-      return b.map((n, i) => ((n - (a[i] ?? 0)) / 5).toFixed(1)).join(" ");
+      const sleep = ms => new Promise(r => setTimeout(r, ms));
+      const fps = async () => {
+        const videos = [...document.querySelectorAll("video")];
+        const before = videos.map(v => v.getVideoPlaybackQuality().totalVideoFrames);
+        await sleep(5000);
+        return videos.map((v, i) => ((v.getVideoPlaybackQuality().totalVideoFrames - before[i]) / 5).toFixed(1));
+      };
+      const views = await fps();
+      const impact = document.querySelector("[data-testid=camera-tab-impact]");
+      if (impact) {
+        impact.click();
+        await sleep(4000);
+        views.push(...await fps());
+      }
+      return views.join(" ");
     })()' 2>&1)" || true
     out="${out//\"/}"
     local n=0 slow=0 f
