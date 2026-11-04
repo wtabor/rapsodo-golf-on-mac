@@ -10,14 +10,18 @@ mkdir -p "$RGM_BUILD"
 [ -d "$src" ] || git clone --depth 1 --branch "$TETHERKIT_REF" https://github.com/XiaoMiku01/TetherKit.git "$src"
 
 # Its RX thread spins and sched_yield()s while idle, which on macOS keeps a core at
-# ~100% with no traffic; sleep 500 us instead (patches/tetherkit-rx-idle-sleep.patch).
-patch_file="$RGM_REPO/patches/tetherkit-rx-idle-sleep.patch"
-if git -C "$src" apply --check "$patch_file" 2>/dev/null; then
-  git -C "$src" apply "$patch_file"
-elif ! git -C "$src" apply --reverse --check "$patch_file" 2>/dev/null; then
-  echo "tetherkit-rx-idle-sleep.patch does not apply to TetherKit $TETHERKIT_REF" >&2
-  exit 1
-fi
+# ~100% with no traffic; sleep 500 us instead (tetherkit-rx-idle-sleep.patch).
+# On macOS a halted bulk IN pipe arrives as a plain transfer error, so TetherKit never
+# clears it and the link dies; clear it and carry on (tetherkit-clear-halt.patch).
+for name in tetherkit-rx-idle-sleep tetherkit-clear-halt; do
+  patch_file="$RGM_REPO/patches/$name.patch"
+  if git -C "$src" apply --check "$patch_file" 2>/dev/null; then
+    git -C "$src" apply "$patch_file"
+  elif ! git -C "$src" apply --reverse --check "$patch_file" 2>/dev/null; then
+    echo "$name.patch does not apply to TetherKit $TETHERKIT_REF" >&2
+    exit 1
+  fi
+done
 
 cmake -S "$src" -B "$src/build" -DCMAKE_BUILD_TYPE=RelWithDebInfo >/dev/null
 cmake --build "$src/build" -j "$(sysctl -n hw.ncpu)" --target tetherkit >/dev/null

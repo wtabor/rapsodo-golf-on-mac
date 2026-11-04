@@ -1,0 +1,47 @@
+diff --git a/src/usb/data_channel.cc b/src/usb/data_channel.cc
+index e95f7cc..124b525 100644
+--- a/src/usb/data_channel.cc
++++ b/src/usb/data_channel.cc
+@@ -1,5 +1,7 @@
+ #include "tetherkit/usb/data_channel.h"
+ 
++#include <thread>
++#include <chrono>
+ #include <sys/sysctl.h>
+ 
+ #include <cstdlib>
+@@ -231,8 +233,8 @@ void UsbDataChannel::OnReceiveComplete(Slot& slot) noexcept {
+       break;
+ 
+     case LIBUSB_TRANSFER_CANCELLED:
+-      // 停机路径。**不要** resubmit。
+-      should_resubmit = false;
++      // Shutdown (shutting_down_, checked below, stops the resubmit), or a ClearHalt
++      // for another transfer aborted this one, which must go back in flight.
+       break;
+ 
+     case LIBUSB_TRANSFER_NO_DEVICE:
+@@ -262,7 +264,22 @@ void UsbDataChannel::OnReceiveComplete(Slot& slot) noexcept {
+     // 官方保证：在回调里直接 resubmit 同一个 transfer 是安全的
+     // （usbi_handle_transfer_completion 在调回调前已把它移出 flying list
+     //  并清了 IN_FLIGHT 标志，且不持 itransfer->lock）。
+-    const int rc = ::libusb_submit_transfer(slot.transfer);
++    int rc = ::libusb_submit_transfer(slot.transfer);
++    // On macOS a halted pipe arrives as LIBUSB_TRANSFER_ERROR, not STALL, so the case
++    // above never clears it and every resubmit fails until TetherKit restarts. Halts
++    // come in bursts, and a transfer given up on is lost for good (they all go and the
++    // link dies), so keep at it for up to 200 ms.
++    for (int attempt = 0; rc == LIBUSB_ERROR_PIPE && attempt < 40 &&
++                          !shutting_down_.load(std::memory_order_acquire); ++attempt) {
++      if (attempt == 0) {
++        TETHERKIT_WARN_TR(Msg::kUsbBulkInStall);
++      } else {
++        std::this_thread::sleep_for(std::chrono::milliseconds(5));
++      }
++      if (device_->ClearHalt(device_->BulkInEndpoint())) {
++        rc = ::libusb_submit_transfer(slot.transfer);
++      }
++    }
+     if (rc == LIBUSB_SUCCESS) {
+       return;  // 在飞计数保持不变：一进一出
+     }
