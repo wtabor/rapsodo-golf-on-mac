@@ -96,8 +96,15 @@ if [ -z "${RGM_UPDATED:-}" ]; then
   [ "$rc" = 3 ] && RGM_UPDATED=1 exec "$d/play.sh" "$@"
 fi
 
-if ! pgrep -f "usb-link.sh" >/dev/null; then
+# Look for the script itself (bash running usb-link.sh, from scripts/ or the
+# LaunchDaemon's copy), not its sudo wrapper: after a monitor power cycle the
+# wrapper was seen left behind with no usb-link.sh under it (11/04/2026). Matching
+# it skipped the start, so the app never got a link until the wrapper was killed.
+if ! pgrep -f "bash .*usb-link\.sh" >/dev/null; then
   sudo -v
+  # Clear such a leftover wrapper. Anchored to "sudo /", so it can't match the
+  # "sudo pkill ..." running it.
+  sudo pkill -9 -f "^sudo /.*usb-link\.sh$" 2>/dev/null || true
   # shellcheck disable=SC2024  # log stays user-owned on purpose
   sudo "$d/usb-link.sh" >"$RGM_USER_HOME/Library/Logs/RapsodoGolf-usblink.log" 2>&1 &
   echo "USB link started (log: ~/Library/Logs/RapsodoGolf-usblink.log)"
