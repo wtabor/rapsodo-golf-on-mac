@@ -61,7 +61,8 @@ t1_patchers() {
   local log="$WORK/patchers.log" rc=0
   python3 -I "$TESTS/patchers.py" --scripts "$RGM_REPO/scripts" --work "$WORK/patchers" \
     --libs "$RGM_LIBS_DIR" --asar "$RGM_APP_DIR/resources/app.asar" --games "$GAMES" \
-    --mediamtx "$MTX_EXE" --mingw "$(command -v "$MINGW" || true)" >"$log" 2>&1 || rc=$?
+    --mediamtx "$MTX_EXE" --mingw "$(command -v "$MINGW" || true)" \
+    --win32u "$RGM_WINE_BIN/../lib/wine/x86_64-unix/win32u.so" >"$log" 2>&1 || rc=$?
   relay <"$log"
   [ "$rc" = 0 ] || fail "patchers.py" "exited with status $rc"
   rm -rf "$WORK/patchers"

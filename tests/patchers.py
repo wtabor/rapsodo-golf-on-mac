@@ -10,7 +10,7 @@ Prints one "PASS|FAIL|SKIP<TAB>name<TAB>detail" line per check (scripts/test.sh
 relays them); other lines are details.
 
 Usage: patchers.py --scripts DIR --work DIR --libs DIR --asar FILE --games DIR
-                   --mediamtx FILE [--mingw CC]
+                   --mediamtx FILE [--mingw CC] [--win32u FILE]
 """
 
 import argparse
@@ -239,7 +239,7 @@ def no_argument(a, work):
     take sys.argv[-1], which is then the script itself, and patch their own source."""
     c = Check("patchers refuse to run without a path")
     for name in ("patch_devicemanager.py", "patch_alignment_ffmpeg.py", "patch_app_polls.py",
-                 "patch_app_window.py", "patch_unity_video.py"):
+                 "patch_app_window.py", "patch_unity_video.py", "patch_wine_topology.py"):
         src = a.scripts / name
         if not src.exists():
             continue
@@ -317,11 +317,53 @@ def test_unity_video(a, work):
     c.done()
 
 
+# ---------------------------------------------------------------- Wine topology
+def test_wine_topology(a, work):
+    name = "patch_wine_topology.py"
+    script = a.scripts / name
+    if not script.exists():
+        emit("FAIL", name, "script missing")
+        return
+    if not a.win32u or not a.win32u.exists():
+        emit("SKIP", name, "no installed win32u.so")
+        return
+    stock = stock_of(a.win32u)
+    c = Check(f"{name} round trip on win32u.so")
+    copy = clone(stock, work / "wine" / "win32u.so")
+    ino = copy.stat().st_ino
+    rc, out = run(script, copy)
+    if rc == 0 and out.startswith("already patched"):
+        c.done("no stock copy (.orig); checked re-run only")
+    else:
+        c.expect(rc == 0 and out.startswith("patched"), f"patch: rc {rc}")
+        c.expect(copy.stat().st_ino != ino, "not replaced by rename")
+        c.expect(subprocess.run(["codesign", "-v", str(copy)], capture_output=True).returncode == 0,
+                 "patched copy fails codesign -v")
+        backup = Path(str(copy) + ".orig")
+        c.expect(backup.exists() and same(backup, stock), "backup .orig missing or not the stock file")
+        before = sha(copy)
+        rc, out = run(script, copy)
+        c.expect(rc == 0 and out.startswith("already patched") and sha(copy) == before,
+                 "re-run: not 'already patched' or changed")
+        rc, out = run(script, "--revert", copy)
+        c.expect(rc == 0 and same(copy, stock), "--revert isn't byte-identical to the stock win32u.so")
+        rc, out = run(script, "--revert", copy)
+        c.expect(rc == 0 and out.startswith("already reverted"), "--revert again: expected 'already reverted'")
+        c.done()
+    c = Check(f"{name} refuses unknown files")
+    u = unknown_file(work, "win32u-unknown.so", size=2 << 20)
+    before = sha(u)
+    rc, out = run(script, u)
+    c.expect(rc == 1 and sha(u) == before, "unknown file: not refused or changed")
+    c.done()
+
+
 def main():
     ap = argparse.ArgumentParser()
     for opt in ("--scripts", "--work", "--libs", "--asar", "--games", "--mediamtx"):
         ap.add_argument(opt, type=Path, required=True)
     ap.add_argument("--mingw", default="")
+    ap.add_argument("--win32u", type=Path, default=None)
     a = ap.parse_args()
     a.work.mkdir(parents=True, exist_ok=True)
     test_devicemanager(a, a.work)
@@ -329,6 +371,7 @@ def main():
     asar_roundtrip(a, a.work, "patch_app_polls.py", 2)
     asar_roundtrip(a, a.work, "patch_app_window.py", 3)
     test_unity_video(a, a.work)
+    test_wine_topology(a, a.work)
     no_argument(a, a.work)
     return 0
 

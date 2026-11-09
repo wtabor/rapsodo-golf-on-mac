@@ -222,5 +222,31 @@ tier2() {
       show "$log"
     fi
   fi
+  t2_prog "display topology matches the monitors (patch_wine_topology.py)" 30 topology.exe
+  t2_topology_one
   t2_video
+}
+
+# The same check in a one-monitor Wine virtual desktop: INTERNAL, not EXTEND.
+# A virtual desktop rewrites the display layout for every process of the same Wine
+# server (seen 11/09/2026: the running app and game dropped to one 800x600 monitor),
+# so this runs only with no app or game up, on a server of its own that exits after.
+t2_topology_one() {
+  local name="display topology with one monitor (virtual desktop): INTERNAL" log="$WORK/topology1.log" rc=0
+  [ -f "$WORK/bin/topology.exe" ] || return 0
+  if pgrep -f 'RapsodoGolf\.exe|SuperApp.games|rgm-display-fix' >/dev/null; then
+    skip "$name" "the app or a game is running (a virtual desktop would change their display layout)"
+    return 0
+  fi
+  WINEPREFIX="$RGM_PREFIX" with_timeout 20 "$RGM_WINE_BIN/wineserver" -w 2>/dev/null || true
+  rm -f "$WORK/bin/topology1.txt"
+  (cd "$WORK/bin" && wine_run 60 explorer /desktop=rgmtest,800x600 cmd /c "topology.exe > topology1.txt") >"$log" 2>&1 || rc=$?
+  WINEPREFIX="$RGM_PREFIX" with_timeout 20 "$RGM_WINE_BIN/wineserver" -w 2>/dev/null || true
+  if grep -q "^result: ok" "$WORK/bin/topology1.txt" 2>/dev/null && grep -q "^info: 1 monitor" "$WORK/bin/topology1.txt"; then
+    pass "$name" "$(grep '^info:' "$WORK/bin/topology1.txt" | tr -d '\r')"
+  else
+    fail "$name" "exit $rc"
+    cat "$WORK/bin/topology1.txt" >>"$log" 2>/dev/null || true
+    show "$log"
+  fi
 }

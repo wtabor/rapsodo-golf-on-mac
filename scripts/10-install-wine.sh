@@ -18,4 +18,8 @@ if [ ! -f "$RGM_PREFIX/system.reg" ]; then
   WINEPREFIX="$RGM_PREFIX" WINEDEBUG=-all "$RGM_WINE_BIN/wineboot" --init >/dev/null 2>&1
   WINEPREFIX="$RGM_PREFIX" "$RGM_WINE_BIN/wineserver" -w
 fi
+# Wine always reports the display topology as INTERNAL, so games' Extended Screens
+# never see a second display. Report EXTEND when 2+ displays are active.
+python3 -I "$(dirname "$0")/patch_wine_topology.py" "$RGM_WINE_BIN/../lib/wine/x86_64-unix/win32u.so" ||
+  echo "note: display topology patch not applied (Extended Screens won't see a second display)" >&2
 echo "Wine ready."

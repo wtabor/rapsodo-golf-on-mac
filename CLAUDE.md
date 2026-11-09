@@ -138,6 +138,16 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   floor 0.25 (`|| 1` keeps zoom 1 for a 0x0, minimized, window), up-zoom as before.
   Found by structure, the `maximize` sites from their literal text (a regex starting with
   a name crawls through the 280 MB archive).
+- **Fix 13 — display topology for Extended Screens (11/09/2026):** Wine's
+  `NtUserQueryDisplayConfig` (win32u.so) always answers `QDC_DATABASE_CURRENT` with
+  `DISPLAYCONFIG_TOPOLOGY_INTERNAL`; the Range's Extended Screens read it and showed
+  "Second screen not detected" with the BenQ attached. `scripts/patch_wine_topology.py`
+  (run by 10, sha256-pinned to Gcenx 11.16's win32u.so, `--revert`, ad-hoc re-sign, swap
+  by rename) reports EXTEND with 2+ paths, else INTERNAL. Confirmed in the Range: screen 2
+  "Screen Detected / BENQ RD280UA". `SetDisplayConfig` stays a stub (Mirror/Extend don't
+  change macOS). Never test with `explorer /desktop=` next to a running app: a virtual
+  desktop rewrites every process's layout (repair: `rgm-display-fix.exe repair`)
+  (`notes/2026-11-09-extended-screens-display-topology.md`).
 - Games downloaded while the app runs are unpatched: play.sh watches `games/` and runs
   40 + 45 when the app logs `download game end` (fallback: 15 s with no changes) and no
   game is running. 40/45 skip files already in place (`cmp -s`), so re-runs never
