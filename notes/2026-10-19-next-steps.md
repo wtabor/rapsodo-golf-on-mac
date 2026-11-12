@@ -51,7 +51,8 @@ actually playing.
 ## Later
 
 - **Rosetta deadline:** this Wine is x86_64 and runs through Rosetta 2, which loses
-  general app support in macOS 28. Spike a Windows 11 ARM VM with USB passthrough
-  of `2207:0019` before then. Don't upgrade to macOS 28 until that works.
+  general app support in macOS 28. Spike ARM64 Wine + FEX (MetalSharp-Wine) first;
+  Windows 11 ARM VM with USB passthrough of `2207:0019` is the fallback
+  (`notes/2026-11-10-after-rosetta-options.md`). Don't upgrade to macOS 28 until one works.
 - **Monitor-wait message:** `play.sh` waits forever if the monitor is off. After 60 s,
   print "press the monitor's power button" (it powers off when idle).
