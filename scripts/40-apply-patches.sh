@@ -18,8 +18,12 @@ if [ ! -f "$RGM_BUILD/GeolocationPlugin.dll" ] ||
   x86_64-w64-mingw32-gcc -shared -O2 -s -o "$RGM_BUILD/GeolocationPlugin.dll" "$geo_src"
   echo "$geo_want" >"$RGM_BUILD/GeolocationPlugin.dll.src.sha256"
 fi
-# The only GeolocationPlugin.dll whose ABI geolocation_stub.c was checked against.
-GEO_SHA256=460583745a1b803ab877ac22bdd9d45a5181cc615bc9fad4e3f4dfd0b935874d
+# The only GeolocationPlugin.dll whose ABI geolocation_stub.c was checked against
+# (sha256 460583745a1b803a… as shipped unsigned; this is its unsigned-form hash).
+GEO_SHA256=d9c244039dd65f0b96898cc375587cd6e6052bd72ba2da34c78ea623e4bc8813
+# Games from 1.16.0 (11/16/2026) ship the same DLLs Authenticode-signed: compare
+# them as unsigned (pe_unsigned_sha256.py drops the signature, code untouched).
+usha() { python3 -I "$(dirname "$0")/pe_unsigned_sha256.py" "$1"; }
 GAMES="$RGM_PREFIX/drive_c/ProgramData/Rapsodo/SuperApp/games"
 
 # 1) libzmq: swap in the patched build, keep the original once. Files already in
@@ -51,7 +55,7 @@ python3 -I "$(dirname "$0")/patch_app_window.py" "$RGM_APP_DIR/resources/app.asa
 
 # 3) Same two fixes for each game. The patched libzmq is only a drop-in for the
 #    exact 4.3.5 build the app ships, so skip any game whose original differs.
-want="$(shasum -a 256 "$RGM_LIBS_DIR/libzmq.dll.orig" | cut -d' ' -f1)"
+want="$(usha "$RGM_LIBS_DIR/libzmq.dll.orig")"
 [ -d "$GAMES" ] || exit 0
 find "$GAMES" -mindepth 6 -maxdepth 6 -path '*_Data/Plugins/x86_64/libzmq.dll' -print0 |
 while IFS= read -r -d '' zmq; do
@@ -59,9 +63,9 @@ while IFS= read -r -d '' zmq; do
   game="${dir#"$GAMES"/}"; game="${game%%_Data/*}"
   # Only back up a complete stock copy: a .orig taken mid-download would be
   # trusted forever and the game would never be patched.
-  [ -f "$zmq.orig" ] || [ "$(shasum -a 256 "$zmq" | cut -d' ' -f1)" != "$want" ] ||
+  [ -f "$zmq.orig" ] || [ "$(usha "$zmq")" != "$want" ] ||
     cp "$zmq" "$zmq.orig"
-  if [ -f "$zmq.orig" ] && [ "$(shasum -a 256 "$zmq.orig" | cut -d' ' -f1)" = "$want" ]; then
+  if [ -f "$zmq.orig" ] && [ "$(usha "$zmq.orig")" = "$want" ]; then
     cmp -s "$RGM_BUILD/libzmq.dll" "$zmq" || cp "$RGM_BUILD/libzmq.dll" "$zmq"
     echo "libzmq.dll replaced: $game"
   else
@@ -73,7 +77,7 @@ while IFS= read -r -d '' zmq; do
   geo="$dir/GeolocationPlugin.dll"
   if [ -f "$geo" ]; then
     [ -f "$geo.orig" ] || cp "$geo" "$geo.orig"
-    if [ "$(shasum -a 256 "$geo.orig" | cut -d' ' -f1)" = "$GEO_SHA256" ]; then
+    if [ "$(usha "$geo.orig")" = "$GEO_SHA256" ]; then
       cmp -s "$RGM_BUILD/GeolocationPlugin.dll" "$geo" || cp "$RGM_BUILD/GeolocationPlugin.dll" "$geo"
       echo "GeolocationPlugin.dll replaced: $game"
     else

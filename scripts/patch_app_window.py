@@ -13,7 +13,7 @@ dist-electron/main.js:
 - window options: open at the work area's size (same look as maximized, but a normal
   window) with a minimum of 800x450, in place of minimum = work area. (`resizable: !0`,
   Electron's default, makes room.)
-- both `win.maximize(), win.show()` calls: `win.focus()` instead of `maximize()`, so
+- every `win.maximize(), win.show()` call (2 in 1.0.0, 3 in 1.1.0): `win.focus()` instead of `maximize()`, so
   the window keeps the size you gave it, also after a game.
 - the resize handler: zoom by the smaller of width/1920 and height/1080, down to 0.25
   (Chromium's minimum), so the whole page fits; wider windows still zoom up as before
@@ -22,7 +22,7 @@ dist-electron/main.js:
 Same length, so the asar index stays valid (the asar integrity fuse is off in this
 build); padding is spaces. Found by structure, not by minified names: the window
 options right after `{ width: X, height: Y } = <display>.workAreaSize;`, the two
-`<win>.maximize(), <win>.show()` calls, and the one `const [w, h] =
+`<win>.maximize(), <win>.show()` calls (at least 2), and the one `const [w, h] =
 <win>.getContentSize(), ...` statement. Each edit is applied or reverted on its own; one
 that isn't found as expected is skipped with a warning (exit status 1).
 
@@ -90,9 +90,12 @@ def calls(m, middle):
 
 def max_edit(m, revert):
     find, other = (MAX_NEW, MAX_ORIG) if revert else (MAX_ORIG, MAX_NEW)
-    hits = calls(m, find)
-    if len(hits) != 2:
-        return "done" if not hits and len(calls(m, other)) == 2 else "missing"
+    # 1.0.0 has two sites (splash closed, game closed); 1.1.0 adds a third.
+    hits, done = calls(m, find), calls(m, other)
+    if len(hits) + len(done) < 2:
+        return "missing"
+    if not hits:
+        return "done"
     edits = []
     for start, end, win in hits:
         new = (f"{win}.maximize(), {win}.show()" if revert else f"{win}.focus()   , {win}.show()").encode()
