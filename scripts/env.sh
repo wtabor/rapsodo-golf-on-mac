@@ -28,6 +28,14 @@ fi
 : "${RGM_GEO_LAT:=0}"
 : "${RGM_GEO_LON:=0}"
 : "${RGM_GEO_ALT:=0}"
+# Where the Unity games run (49-game-runtime.sh): "wine" (this Wine, DXVK) or
+# "crossover" (CrossOver's Wine with RGM_GAME_BACKEND: dxmt, d3dmetal or dxvk).
+# RGM_GAME_HUD=1 shows Apple's Metal frame-rate HUD in the games (crossover only).
+: "${RGM_GAME_RUNTIME:=wine}"
+: "${RGM_GAME_BACKEND:=dxmt}"
+: "${RGM_CX_ROOT:=/Applications/CrossOver.app/Contents/SharedSupport/CrossOver}"
+: "${RGM_CX_BOTTLES:=$RGM_USER_HOME/Library/Application Support/CrossOver/Bottles}"
+: "${RGM_CX_BOTTLE:=rapsodo-games}"
 
 RGM_WINE_BIN="$RGM_HOME/Wine Staging.app/Contents/Resources/wine/bin"
 RGM_PREFIX="$RGM_HOME/prefix"
@@ -38,3 +46,4 @@ RGM_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 export RGM_HOME RGM_WINE_BIN RGM_PREFIX RGM_APP_DIR RGM_LIBS_DIR RGM_BUILD RGM_REPO
 export RGM_GEO_LAT RGM_GEO_LON RGM_GEO_ALT
+export RGM_GAME_RUNTIME RGM_GAME_BACKEND RGM_CX_ROOT RGM_CX_BOTTLES RGM_CX_BOTTLE
