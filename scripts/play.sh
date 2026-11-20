@@ -119,7 +119,7 @@ fi
 # idempotent and takes a few seconds.
 heal_log="$RGM_USER_HOME/Library/Logs/RapsodoGolf-heal.log"
 if "$d/40-apply-patches.sh" >"$heal_log" 2>&1 && "$d/45-install-dxvk.sh" >>"$heal_log" 2>&1 &&
-  "$d/47-install-mediamtx.sh" >>"$heal_log" 2>&1; then
+  "$d/47-install-mediamtx.sh" >>"$heal_log" 2>&1 && "$d/49-game-runtime.sh" >>"$heal_log" 2>&1; then
   echo "Wine fixes checked (log: ~/Library/Logs/RapsodoGolf-heal.log)"
 else
   echo "warning: re-applying the Wine fixes failed; see $heal_log" >&2
@@ -195,6 +195,13 @@ else
   echo "warning: building the display fix failed; see $heal_log" >&2
 fi
 
+# RGM_GAME_RUNTIME=crossover: the games the app starts run under CrossOver (DXMT)
+# through 49's stand-in exes. The runner exits with the app and closes any game.
+if [ "$RGM_GAME_RUNTIME" = crossover ] && kill -0 "$pid" 2>/dev/null; then
+  "$d/game-runner.sh" "$pid" >>"$RGM_USER_HOME/Library/Logs/RapsodoGolf-games.log" 2>&1 &
+  disown
+fi
+
 # A game downloaded while the app runs ships its own unpatched libzmq.dll and
 # deviceManagerServer.dll. The app hands the monitor to the game (light goes red,
 # "ready to connect") and the game can't connect. Patch new games as soon as the
@@ -232,7 +239,7 @@ while kill -0 "$pid" 2>/dev/null; do
   echo "New game downloaded; applying the Wine fixes to it."
   # In the background, so a Wine crash meanwhile is still caught at the top of
   # the loop (kill_wine also ends a frozen `wine reg`).
-  { "$d/40-apply-patches.sh" && "$d/45-install-dxvk.sh"; } >>"$heal_log" 2>&1 &
+  { "$d/40-apply-patches.sh" && "$d/45-install-dxvk.sh" && "$d/49-game-runtime.sh"; } >>"$heal_log" 2>&1 &
   patcher=$!
   while kill -0 "$patcher" 2>/dev/null && app_server_alive; do sleep 1; done
   kill -0 "$patcher" 2>/dev/null && continue

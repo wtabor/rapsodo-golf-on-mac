@@ -143,6 +143,21 @@ Put in your latitude, longitude and altitude (meters) and save. Without it the
 games use 0/0. Also set the game's own **Elevation** (Settings → Required): that one
 drives ball flight.
 
+**Smoother games (optional, needs CrossOver).** The games' graphics normally go
+through DXVK and MoltenVK, which is slow on Apple GPUs: Target Range ran at about
+10 fps at 1920×1080 on a base M4. With [CrossOver](https://www.codeweavers.com/crossover)
+(paid; 14-day trial) in /Applications, the games can run in CrossOver's Wine with
+DXMT, which draws straight to Metal: about 39 fps on the same Mac and screen. The
+Rapsodo app itself stays where it is. Turn it on in `scripts/env.local.sh`:
+
+```bash
+RGM_GAME_RUNTIME=crossover
+RGM_GAME_HUD=1   # optional: frame-rate overlay in the games
+```
+
+The next launch sets it up (a CrossOver bottle named `rapsodo-games`). Remove the line
+to go back. How it works: [`scripts/49-game-runtime.sh`](scripts/49-game-runtime.sh).
+
 ## Troubleshooting
 
 | You see | Do this |
@@ -235,13 +250,15 @@ For developers. The full investigation, including dead ends, is in
 | Fix 11 | Even with GStreamer, the swing video stayed blank. Unity passes each video frame between two Direct3D devices, which DXVK on a Mac can't do, so the fixes step makes each game's `UnityPlayer.dll` decode video into ordinary memory instead (one renamed function name) → [`scripts/patch_unity_video.py`](scripts/patch_unity_video.py). And Wine's default MP4 reader gets the frame times of these videos wrong, so Unity skipped every frame; the installer switches Wine to its newer, FFmpeg-based reader → [`scripts/46-install-gstreamer.sh`](scripts/46-install-gstreamer.sh) |
 | Fix 12 | The app's window couldn't be made smaller: the app sets its minimum size to the whole screen and maximizes its window, and Wine doesn't pass a resize of a maximized window on to it, so a smaller Mac window just cropped the page. Same-length edits in `app.asar` open it as a normal window the size of the screen (minimum 800×450), stop the maximizing, and zoom the page down to fit → [`scripts/patch_app_window.py`](scripts/patch_app_window.py) |
 | Fix 13 | The games' Extended Screens panel never saw a second display ("Second screen not detected"): Wine always tells Windows programs the display layout is "laptop screen only", even with two screens. The installer patches Wine to say "extended" when two or more displays are active → [`scripts/patch_wine_topology.py`](scripts/patch_wine_topology.py). The game's Mirror/Extend buttons still don't change your Mac's arrangement; set that in System Settings → Displays |
+| Games on DXMT (opt-in) | With `RGM_GAME_RUNTIME=crossover`, each game's exe is replaced by a small stand-in. The app starts it as usual; it asks [`scripts/game-runner.sh`](scripts/game-runner.sh) to run the real game in a CrossOver bottle with DXMT (Direct3D 11 straight to Metal, ~4× DXVK here) and stays up until the game exits, so the app sees a normal game → [`scripts/49-game-runtime.sh`](scripts/49-game-runtime.sh), [`scripts/game_runner.c`](scripts/game_runner.c) |
 | UI | Electron runs with `--no-sandbox --disable-gpu --disable-gpu-compositing --in-process-gpu` |
 | Names | The app and each game show under their own names (Rapsodo Golf, Driving Range, ...) in the Dock, Command-Tab and Force Quit, not "wine": a small library the launcher loads into Wine renames each process → [`scripts/appname.c`](scripts/appname.c) |
 
 Each game ships its own `libzmq.dll`, `deviceManagerServer.dll` and
 `GeolocationPlugin.dll`, so [`scripts/40-apply-patches.sh`](scripts/40-apply-patches.sh)
 patches those too. [`scripts/play.sh`](scripts/play.sh) re-runs it,
-`45-install-dxvk.sh`, `47-install-mediamtx.sh` and `48-build-display-fix.sh` on every
+`45-install-dxvk.sh`, `47-install-mediamtx.sh`, `48-build-display-fix.sh` and
+`49-game-runtime.sh` on every
 launch (about 4 seconds), because Rapsodo updates and new game downloads undo them.
 While the app runs, it also patches any game downloaded during the session, runs the
 display helper (Fix 9), and restarts the app if Wine itself crashes.

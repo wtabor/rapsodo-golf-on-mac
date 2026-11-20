@@ -26,6 +26,24 @@ T3_GUARD_PIDS=""
 # Unity crash / startup failure markers in Player.log.
 T3_CRASH='Crash!!!|Failed to initialize player|Fatal error|Failed to create D3D11|Unity Player has crashed|DirectX 11 not supported'
 
+# RGM_GAME_RUNTIME=crossover (49-game-runtime.sh): the app starts a stand-in exe and
+# game-runner.sh runs the real game in the CrossOver bottle, from C:\rgm-games\. The
+# game's process, Player.log and saved settings are then the bottle's, and its window
+# isn't hidden (the guards only watch this Wine).
+if [ "$RGM_GAME_RUNTIME" = crossover ]; then
+  T3_GAME_PAT="rgm-games"
+  T3_GAME_USER_DIR="$RGM_CX_BOTTLES/$RGM_CX_BOTTLE/drive_c/users/crossover"
+else
+  T3_GAME_PAT="SuperApp.games"
+  T3_GAME_USER_DIR="$RGM_PREFIX/drive_c/users/$(id -un)"
+fi
+# The Wine the games run in, as a command (with_timeout execs it, so no function).
+if [ "$RGM_GAME_RUNTIME" = crossover ]; then
+  T3_GWINE=("$RGM_CX_ROOT/bin/wine" --bottle "$RGM_CX_BOTTLE" --no-update)
+else
+  T3_GWINE=(env WINEPREFIX="$RGM_PREFIX" WINEDEBUG=-all "$RGM_WINE_BIN/wine")
+fi
+
 cdp() { with_timeout "${CDP_TIMEOUT:-40}" node "$TESTS/app/cdp.mjs" --port "$T3_PORT" --timeout "${CDP_TIMEOUT:-30}" "$@"; }
 
 # wait_for SECONDS COMMAND...: poll once a second until COMMAND succeeds.
@@ -115,6 +133,9 @@ t3_start() {
   t3_guard_start
   RGM_REMOTE_DEBUGGING_PORT="$T3_PORT" "$T3_DIR/launch" &
   T3_PID=$!
+  # As play.sh does; it exits with the app.
+  [ "$RGM_GAME_RUNTIME" != crossover ] ||
+    "$RGM_REPO/scripts/game-runner.sh" "$T3_PID" >"$T3_DIR/game-runner.log" 2>&1 &
   local s=$SECONDS
   # Like play.sh: the device manager's start line, or its failure.
   wait_for 150 sh -c 'grep -q -E "DEBUG: start device manager|device manager server start failed" "$1" || ! kill -0 "$2" 2>/dev/null' _ "$T3_LOG" "$T3_PID"
@@ -192,7 +213,7 @@ t3_games() {
   done
 }
 
-game_pid() { pgrep -f "SuperApp.games.*$1" | head -1; }
+game_pid() { pgrep -f "$T3_GAME_PAT.*$1" | head -1; }
 
 # Put back a game's saved settings (its HKCU\Software\<company>\<product> key) as they
 # were before the test: Unity saves the window size there when it quits, and the test's
@@ -202,7 +223,7 @@ T3_SAVED_KEY="" T3_SAVED_FILE="" T3_SAVED_HAD=0
 t3_save_settings() {
   T3_SAVED_KEY=$1 T3_SAVED_FILE=$2 T3_SAVED_HAD=0
   rm -f "$T3_SAVED_FILE"
-  WINEPREFIX="$RGM_PREFIX" WINEDEBUG=-all with_timeout 30 "$RGM_WINE_BIN/wine" reg export "$T3_SAVED_KEY" \
+  with_timeout 30 "${T3_GWINE[@]}" reg export "$T3_SAVED_KEY" \
     "$(winpath "$T3_SAVED_FILE")" /y >/dev/null 2>&1 && [ -s "$T3_SAVED_FILE" ] && T3_SAVED_HAD=1
   return 0
 }
@@ -210,9 +231,9 @@ t3_restore_settings() {
   [ -n "$T3_SAVED_KEY" ] || return 0
   local key=$T3_SAVED_KEY rc=0
   T3_SAVED_KEY=""
-  WINEPREFIX="$RGM_PREFIX" WINEDEBUG=-all with_timeout 30 "$RGM_WINE_BIN/wine" reg delete "$key" /f >/dev/null 2>&1 || true
+  with_timeout 30 "${T3_GWINE[@]}" reg delete "$key" /f >/dev/null 2>&1 || true
   if [ "$T3_SAVED_HAD" = 1 ]; then
-    WINEPREFIX="$RGM_PREFIX" WINEDEBUG=-all with_timeout 30 "$RGM_WINE_BIN/wine" reg import "$(winpath "$T3_SAVED_FILE")" \
+    with_timeout 30 "${T3_GWINE[@]}" reg import "$(winpath "$T3_SAVED_FILE")" \
       >/dev/null 2>&1 || rc=1
   fi
   return $rc
@@ -222,13 +243,13 @@ t3_restore_settings() {
 t3_close_game() {
   local exe=$1
   [ -n "$(game_pid "$exe")" ] || { echo "exited on its own"; return 0; }
-  WINEPREFIX="$RGM_PREFIX" WINEDEBUG=-all with_timeout 20 "$RGM_WINE_BIN/wine" taskkill /im "$exe" >/dev/null 2>&1
-  if wait_for 30 sh -c '! pgrep -f "SuperApp.games.*$1" >/dev/null' _ "$exe"; then
+  with_timeout 20 "${T3_GWINE[@]}" taskkill /im "$exe" >/dev/null 2>&1
+  if wait_for 30 sh -c '! pgrep -f "$2.*$1" >/dev/null' _ "$exe" "$T3_GAME_PAT"; then
     echo "closed"
     return 0
   fi
-  WINEPREFIX="$RGM_PREFIX" WINEDEBUG=-all with_timeout 20 "$RGM_WINE_BIN/wine" taskkill /f /im "$exe" >/dev/null 2>&1
-  if wait_for 15 sh -c '! pgrep -f "SuperApp.games.*$1" >/dev/null' _ "$exe"; then
+  with_timeout 20 "${T3_GWINE[@]}" taskkill /f /im "$exe" >/dev/null 2>&1
+  if wait_for 15 sh -c '! pgrep -f "$2.*$1" >/dev/null' _ "$exe" "$T3_GAME_PAT"; then
     echo "force-closed (ignored WM_CLOSE)"
     return 0
   fi
@@ -245,7 +266,7 @@ t3_game() {
   if [ ! -f "$info" ]; then skip "$name" "no $info"; return; fi
   company="$(sed -n 1p "$info" | tr -d '\r')"
   product="$(sed -n 2p "$info" | tr -d '\r')"
-  plog="$RGM_PREFIX/drive_c/users/$(id -un)/AppData/LocalLow/$company/$product/Player.log"
+  plog="$T3_GAME_USER_DIR/AppData/LocalLow/$company/$product/Player.log"
   if [ "$T3_SHOW" != 1 ]; then
     args="$args $T3_GAME_WINDOW"
     t3_save_settings "HKCU\\Software\\$company\\$product" "$T3_DIR/$slug.reg"
